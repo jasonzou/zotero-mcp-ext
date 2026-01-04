@@ -13,6 +13,9 @@ import { UnifiedContentExtractor } from './unifiedContentExtractor';
 import { SmartAnnotationExtractor } from './smartAnnotationExtractor';
 import { MCPSettingsService } from './mcpSettingsService';
 import { AIInstructionsManager } from './aiInstructionsManager';
+import { generateCitation, generateMultipleCitations, getDefaultStyle } from './citationFormatter';
+
+declare let Zotero: any;
 
 export interface MCPRequest {
   jsonrpc: '2.0';
@@ -747,10 +750,36 @@ export class StreamableMCPServer {
           type: 'object',
           properties: {
             itemKey: { type: 'string', description: 'Item key' },
-            format: { 
-              type: 'string', 
+            format: {
+              type: 'string',
               enum: ['json', 'text'],
-              description: 'Response format (default: json)' 
+              description: 'Response format (default: json)'
+            },
+          },
+          required: ['itemKey'],
+        },
+      },
+      {
+        name: 'get_item_citation',
+        description: 'Generate a citation for a specific item in various CSL styles (APA, Chicago, Harvard, IEEE, MLA, Nature, Vancouver, BibTeX)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            itemKey: { type: 'string', description: 'Item key (required)' },
+            style: {
+              type: 'string',
+              enum: ['apa', 'chicago-author-date', 'harvard1', 'ieee', 'mla', 'nature', 'vancouver', 'bibtex'],
+              description: 'Citation style (default: apa)'
+            },
+            format: {
+              type: 'string',
+              enum: ['html', 'text', 'bibtex'],
+              description: 'Output format: html (with formatting), text (plain text), bibtex (BibTeX entry)'
+            },
+            itemKeys: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Multiple item keys to generate citations for (batch mode)'
             },
           },
           required: ['itemKey'],
@@ -841,6 +870,13 @@ export class StreamableMCPServer {
             throw new Error('itemKey is required');
           }
           result = await this.callGetItemAbstract(args);
+          break;
+
+        case 'get_item_citation':
+          if (!args?.itemKey) {
+            throw new Error('itemKey is required');
+          }
+          result = await this.callGetItemCitation(args);
           break;
 
         default:
@@ -1112,6 +1148,46 @@ export class StreamableMCPServer {
     const response = await handleGetItemAbstract({ 1: itemKey }, abstractParams);
     const result = response.body ? JSON.parse(response.body) : response;
     return applyGlobalAIInstructions(result, 'get_item_abstract');
+  }
+
+  private async callGetItemCitation(args: any): Promise<any> {
+    const { itemKey, style, format, itemKeys } = args;
+
+    // Batch mode: generate citations for multiple items
+    if (itemKeys && Array.isArray(itemKeys) && itemKeys.length > 0) {
+      const items = [];
+      for (const key of itemKeys) {
+        const item = Zotero.Items.getByLibraryAndKey(
+          Zotero.Libraries.userLibraryID,
+          key
+        );
+        if (item) {
+          items.push(item);
+        }
+      }
+
+      const effectiveStyle = style || getDefaultStyle();
+      const effectiveFormat = format === 'bibtex' ? 'bibtex' : (format === 'html' ? 'html' : 'text');
+
+      const result = await generateMultipleCitations(items, effectiveStyle, effectiveFormat);
+      return applyGlobalAIInstructions(result, 'get_item_citation');
+    }
+
+    // Single item mode
+    const item = Zotero.Items.getByLibraryAndKey(
+      Zotero.Libraries.userLibraryID,
+      itemKey
+    );
+
+    if (!item) {
+      throw new Error(`Item with key ${itemKey} not found`);
+    }
+
+    const effectiveStyle = style || getDefaultStyle();
+    const effectiveFormat = format === 'bibtex' ? 'bibtex' : (format === 'html' ? 'html' : 'text');
+
+    const result = await generateCitation(item, effectiveStyle, effectiveFormat);
+    return applyGlobalAIInstructions(result, 'get_item_citation');
   }
 
   /**
