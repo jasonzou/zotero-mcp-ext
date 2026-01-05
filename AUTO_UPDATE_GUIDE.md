@@ -11,8 +11,8 @@ The plugin's `manifest.json` contains:
 {
   "applications": {
     "zotero": {
-      "id": "zotero-mcp-plugin@autoagent.my",
-      "update_url": "https://github.com/cookjohn/zotero-mcp/releases/latest/download/update.json"
+      "id": "zotero-mcp-ext@autoagent.my",
+      "update_url": "https://github.com/jasonzou/zotero-mcp-ext/releases/latest/download/update.json"
     }
   }
 }
@@ -24,11 +24,11 @@ The update manifest follows Zotero's update format:
 ```json
 {
   "addons": {
-    "zotero-mcp-plugin@autoagent.my": {
+    "zotero-mcp-ext@autoagent.my": {
       "updates": [
         {
           "version": "1.2.0",
-          "update_link": "https://github.com/cookjohn/zotero-mcp/releases/download/v1.2.0/zotero-mcp-plugin-1.2.0.xpi",
+          "update_link": "https://github.com/jasonzou/zotero-mcp-ext/releases/download/v1.2.0/zotero-mcp-ext-1.2.0.xpi",
           "applications": {
             "zotero": {
               "strict_min_version": "6.999",
@@ -65,7 +65,7 @@ The GitHub Actions workflow automatically:
 - Uploads both `.xpi` and `update.json` files
 
 ### 3. Update URL Resolution
-- Plugin checks: `https://github.com/cookjohn/zotero-mcp/releases/latest/download/update.json`
+- Plugin checks: `https://github.com/jasonzou/zotero-mcp-ext/releases/latest/download/update.json`
 - GitHub redirects `latest` to the most recent release
 - Users get the newest version automatically
 
@@ -84,7 +84,7 @@ The GitHub Actions workflow automatically:
 ### Method 3: URL Verification
 Test the update URL manually:
 ```bash
-curl -L "https://github.com/cookjohn/zotero-mcp/releases/latest/download/update.json"
+curl -L "https://github.com/jasonzou/zotero-mcp-ext/releases/latest/download/update.json"
 ```
 
 Should return the latest version information.
@@ -112,17 +112,17 @@ Should return the latest version information.
 1. **Check plugin manifest**:
    ```bash
    # Extract and check manifest from installed .xpi
-   unzip -p zotero-mcp-plugin-1.2.0.xpi manifest.json | jq
+   unzip -p zotero-mcp-ext-1.2.0.xpi manifest.json | jq
    ```
 
 2. **Verify update URL**:
    ```bash
-   curl -I "https://github.com/cookjohn/zotero-mcp/releases/latest/download/update.json"
+   curl -I "https://github.com/jasonzou/zotero-mcp-ext/releases/latest/download/update.json"
    ```
 
 3. **Test download link**:
    ```bash
-   curl -I "https://github.com/cookjohn/zotero-mcp/releases/download/v1.2.0/zotero-mcp-plugin-1.2.0.xpi"
+   curl -I "https://github.com/jasonzou/zotero-mcp-ext/releases/download/v1.2.0/zotero-mcp-ext-1.2.0.xpi"
    ```
 
 ## 📝 Update Check Frequency

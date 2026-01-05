@@ -11,7 +11,7 @@
   console.log('🧪 Quick Test: PDF Metadata MCP Tools\n');
 
   // Get ztoolkit
-  const ztoolkit = Zotero.ZoteroMCP?.addon?.ztoolkit;
+  const ztoolkit = Zotero.ZoteroMCPExt?.addon?.ztoolkit;
   if (!ztoolkit) {
     console.error('❌ Plugin not loaded!');
     return;
@@ -27,7 +27,7 @@
 
   try {
     const modules = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const { PDFProcessor, PDFMetadataExtractor, ZoteroMetadataRetriever, ItemCreator } = modules;
@@ -50,7 +50,7 @@
 
   try {
     const { PDFProcessor, PDFMetadataExtractor, ZoteroMetadataRetriever, ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const processor = new PDFProcessor(ztoolkit);
@@ -80,7 +80,7 @@
 
   try {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     // Create a test item
@@ -123,7 +123,7 @@
 
   try {
     const { PDFMetadataExtractor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const extractor = new PDFMetadataExtractor(ztoolkit);

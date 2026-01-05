@@ -1,4 +1,4 @@
-import { PDFProcessor } from './pdfProcessor';
+import { PDFProcessor } from "./pdfProcessor";
 
 declare const Zotero: any;
 declare const ztoolkit: ZToolkit;
@@ -25,12 +25,14 @@ export class ZoteroMetadataRetriever {
    */
   async retrieveFromPDF(pdfPath: string): Promise<RetrievedMetadata | null> {
     try {
-      ztoolkit.log('[ZoteroMetadataRetriever] 开始从PDF检索元数据:', { pdfPath });
+      ztoolkit.log("[ZoteroMetadataRetriever] 开始从PDF检索元数据:", {
+        pdfPath,
+      });
 
       // 提取PDF前几页的文本用于识别
       const fullText = await this.pdfProcessor.extractText(pdfPath);
       if (!fullText || fullText.trim().length === 0) {
-        ztoolkit.log('[ZoteroMetadataRetriever] PDF文本为空，无法检索元数据');
+        ztoolkit.log("[ZoteroMetadataRetriever] PDF文本为空，无法检索元数据");
         return null;
       }
 
@@ -41,14 +43,18 @@ export class ZoteroMetadataRetriever {
       const metadata = await this.recognizeFromText(sampleText);
 
       if (metadata) {
-        ztoolkit.log('[ZoteroMetadataRetriever] 成功从PDF检索元数据');
+        ztoolkit.log("[ZoteroMetadataRetriever] 成功从PDF检索元数据");
         return metadata;
       }
 
-      ztoolkit.log('[ZoteroMetadataRetriever] 无法从PDF文本识别元数据');
+      ztoolkit.log("[ZoteroMetadataRetriever] 无法从PDF文本识别元数据");
       return null;
     } catch (error) {
-      ztoolkit.log('[ZoteroMetadataRetriever] PDF元数据检索失败:', error, 'error');
+      ztoolkit.log(
+        "[ZoteroMetadataRetriever] PDF元数据检索失败:",
+        error,
+        "error",
+      );
       return null;
     }
   }
@@ -60,23 +66,27 @@ export class ZoteroMetadataRetriever {
    */
   async retrieveFromDOI(doi: string): Promise<RetrievedMetadata | null> {
     try {
-      ztoolkit.log('[ZoteroMetadataRetriever] 从DOI检索元数据:', { doi });
+      ztoolkit.log("[ZoteroMetadataRetriever] 从DOI检索元数据:", { doi });
 
       const identifier = {
-        itemType: 'journalArticle',
-        DOI: doi
+        itemType: "journalArticle",
+        DOI: doi,
       };
 
       const metadata = await this.translateSearch(identifier);
 
       if (metadata) {
-        ztoolkit.log('[ZoteroMetadataRetriever] 成功从DOI检索元数据');
+        ztoolkit.log("[ZoteroMetadataRetriever] 成功从DOI检索元数据");
         return metadata;
       }
 
       return null;
     } catch (error) {
-      ztoolkit.log('[ZoteroMetadataRetriever] DOI元数据检索失败:', error, 'error');
+      ztoolkit.log(
+        "[ZoteroMetadataRetriever] DOI元数据检索失败:",
+        error,
+        "error",
+      );
       return null;
     }
   }
@@ -88,23 +98,27 @@ export class ZoteroMetadataRetriever {
    */
   async retrieveFromISBN(isbn: string): Promise<RetrievedMetadata | null> {
     try {
-      ztoolkit.log('[ZoteroMetadataRetriever] 从ISBN检索元数据:', { isbn });
+      ztoolkit.log("[ZoteroMetadataRetriever] 从ISBN检索元数据:", { isbn });
 
       const identifier = {
-        itemType: 'book',
-        ISBN: isbn
+        itemType: "book",
+        ISBN: isbn,
       };
 
       const metadata = await this.translateSearch(identifier);
 
       if (metadata) {
-        ztoolkit.log('[ZoteroMetadataRetriever] 成功从ISBN检索元数据');
+        ztoolkit.log("[ZoteroMetadataRetriever] 成功从ISBN检索元数据");
         return metadata;
       }
 
       return null;
     } catch (error) {
-      ztoolkit.log('[ZoteroMetadataRetriever] ISBN元数据检索失败:', error, 'error');
+      ztoolkit.log(
+        "[ZoteroMetadataRetriever] ISBN元数据检索失败:",
+        error,
+        "error",
+      );
       return null;
     }
   }
@@ -114,13 +128,18 @@ export class ZoteroMetadataRetriever {
    * @param text PDF文本样本
    * @returns 识别到的元数据
    */
-  private async recognizeFromText(text: string): Promise<RetrievedMetadata | null> {
+  private async recognizeFromText(
+    text: string,
+  ): Promise<RetrievedMetadata | null> {
     try {
       // 使用Zotero的recognizePDF功能
-      if (typeof Zotero.Recognize !== 'undefined' && Zotero.Recognize.recognizeItems) {
+      if (
+        typeof Zotero.Recognize !== "undefined" &&
+        Zotero.Recognize.recognizeItems
+      ) {
         const results = await Promise.race([
           Zotero.Recognize.recognizeItems([{ text }]),
-          this.createTimeout('PDF recognition timeout')
+          this.createTimeout("PDF recognition timeout"),
         ]);
 
         if (results && results.length > 0 && results[0]) {
@@ -130,7 +149,7 @@ export class ZoteroMetadataRetriever {
 
       return null;
     } catch (error) {
-      ztoolkit.log('[ZoteroMetadataRetriever] 文本识别失败:', error, 'error');
+      ztoolkit.log("[ZoteroMetadataRetriever] 文本识别失败:", error, "error");
       return null;
     }
   }
@@ -140,18 +159,20 @@ export class ZoteroMetadataRetriever {
    * @param identifier 标识符对象（DOI、ISBN等）
    * @returns 检索到的元数据
    */
-  private async translateSearch(identifier: any): Promise<RetrievedMetadata | null> {
+  private async translateSearch(
+    identifier: any,
+  ): Promise<RetrievedMetadata | null> {
     try {
       const translate = new Zotero.Translate.Search();
       translate.setIdentifier(identifier);
 
       const translators = await Promise.race([
         translate.getTranslators(),
-        this.createTimeout('Translator lookup timeout')
+        this.createTimeout("Translator lookup timeout"),
       ]);
 
       if (!translators || translators.length === 0) {
-        ztoolkit.log('[ZoteroMetadataRetriever] 未找到合适的translator');
+        ztoolkit.log("[ZoteroMetadataRetriever] 未找到合适的translator");
         return null;
       }
 
@@ -159,17 +180,21 @@ export class ZoteroMetadataRetriever {
 
       const newItems = await Promise.race([
         translate.translate(),
-        this.createTimeout('Translation timeout')
+        this.createTimeout("Translation timeout"),
       ]);
 
       if (!newItems || newItems.length === 0) {
-        ztoolkit.log('[ZoteroMetadataRetriever] Translation未返回结果');
+        ztoolkit.log("[ZoteroMetadataRetriever] Translation未返回结果");
         return null;
       }
 
       return this.convertZoteroItem(newItems[0]);
     } catch (error) {
-      ztoolkit.log('[ZoteroMetadataRetriever] Translate search失败:', error, 'error');
+      ztoolkit.log(
+        "[ZoteroMetadataRetriever] Translate search失败:",
+        error,
+        "error",
+      );
       return null;
     }
   }
@@ -181,7 +206,7 @@ export class ZoteroMetadataRetriever {
    */
   private convertZoteroItem(item: any): RetrievedMetadata {
     const metadata: RetrievedMetadata = {
-      itemType: item.itemType || 'document',
+      itemType: item.itemType || "document",
     };
 
     // 基本字段
@@ -193,7 +218,8 @@ export class ZoteroMetadataRetriever {
     if (item.rights) metadata.rights = item.rights;
 
     // 出版信息
-    if (item.publicationTitle) metadata.publicationTitle = item.publicationTitle;
+    if (item.publicationTitle)
+      metadata.publicationTitle = item.publicationTitle;
     if (item.volume) metadata.volume = item.volume;
     if (item.issue) metadata.issue = item.issue;
     if (item.pages) metadata.pages = item.pages;
@@ -212,17 +238,23 @@ export class ZoteroMetadataRetriever {
     if (item.numPages) metadata.numPages = item.numPages;
 
     // Creators（作者、编辑等）
-    if (item.creators && Array.isArray(item.creators) && item.creators.length > 0) {
+    if (
+      item.creators &&
+      Array.isArray(item.creators) &&
+      item.creators.length > 0
+    ) {
       metadata.creators = item.creators.map((c: any) => ({
-        firstName: c.firstName || '',
-        lastName: c.lastName || '',
-        creatorType: c.creatorType || 'author'
+        firstName: c.firstName || "",
+        lastName: c.lastName || "",
+        creatorType: c.creatorType || "author",
       }));
     }
 
     // Tags
     if (item.tags && Array.isArray(item.tags) && item.tags.length > 0) {
-      metadata.tags = item.tags.map((t: any) => typeof t === 'string' ? t : t.tag);
+      metadata.tags = item.tags.map((t: any) =>
+        typeof t === "string" ? t : t.tag,
+      );
     }
 
     return metadata;

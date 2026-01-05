@@ -1,4 +1,4 @@
-import { PDFProcessor, PDFMetadata } from './pdfProcessor';
+import { PDFProcessor, PDFMetadata } from "./pdfProcessor";
 
 declare const ztoolkit: ZToolkit;
 
@@ -20,11 +20,11 @@ export class PDFMetadataExtractor {
    */
   async extractMetadata(pdfPath: string): Promise<PDFMetadata> {
     try {
-      ztoolkit.log('[PDFMetadataExtractor] 开始提取PDF元数据:', { pdfPath });
+      ztoolkit.log("[PDFMetadataExtractor] 开始提取PDF元数据:", { pdfPath });
 
       // 验证文件存在
       if (!pdfPath || pdfPath.trim().length === 0) {
-        throw new Error('PDF路径为空');
+        throw new Error("PDF路径为空");
       }
 
       // 使用PDFProcessor提取元数据
@@ -33,10 +33,10 @@ export class PDFMetadataExtractor {
       // 清理和规范化元数据
       const cleanedMetadata = this.cleanMetadata(metadata);
 
-      ztoolkit.log('[PDFMetadataExtractor] 元数据提取完成:', cleanedMetadata);
+      ztoolkit.log("[PDFMetadataExtractor] 元数据提取完成:", cleanedMetadata);
       return cleanedMetadata;
     } catch (error) {
-      ztoolkit.log('[PDFMetadataExtractor] 提取失败:', error, 'error');
+      ztoolkit.log("[PDFMetadataExtractor] 提取失败:", error, "error");
       // 返回空元数据而不是抛出错误，以便优雅降级
       return {};
     }
@@ -68,8 +68,8 @@ export class PDFMetadataExtractor {
     // 清理关键词
     if (metadata.keywords && metadata.keywords.length > 0) {
       cleaned.keywords = metadata.keywords
-        .map(k => this.cleanString(k))
-        .filter(k => k.length > 0);
+        .map((k) => this.cleanString(k))
+        .filter((k) => k.length > 0);
     }
 
     // 保留技术元数据
@@ -104,8 +104,8 @@ export class PDFMetadataExtractor {
   private cleanString(str: string): string {
     return str
       .trim()
-      .replace(/\s+/g, ' ')  // 多个空格替换为单个空格
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // 移除控制字符
+      .replace(/\s+/g, " ") // 多个空格替换为单个空格
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ""); // 移除控制字符
   }
 
   /**
@@ -117,14 +117,18 @@ export class PDFMetadataExtractor {
   private parsePDFDate(pdfDate: string): string {
     try {
       // PDF日期格式示例: D:20230115120000+08'00'
-      const match = pdfDate.match(/D:(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+      const match = pdfDate.match(
+        /D:(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
+      );
       if (match) {
         const [, year, month, day, hour, minute, second] = match;
-        return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`).toISOString();
+        return new Date(
+          `${year}-${month}-${day}T${hour}:${minute}:${second}`,
+        ).toISOString();
       }
       return pdfDate;
     } catch (error) {
-      ztoolkit.log('[PDFMetadataExtractor] 日期解析失败:', error, 'error');
+      ztoolkit.log("[PDFMetadataExtractor] 日期解析失败:", error, "error");
       return pdfDate;
     }
   }
@@ -142,7 +146,11 @@ export class PDFMetadataExtractor {
       titles.push(metadata.title);
     }
 
-    if (metadata.subject && metadata.subject.length > 10 && metadata.subject.length < 200) {
+    if (
+      metadata.subject &&
+      metadata.subject.length > 10 &&
+      metadata.subject.length < 200
+    ) {
       // 如果subject看起来像标题（长度合理），也加入候选
       titles.push(metadata.subject);
     }

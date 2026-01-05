@@ -1,6 +1,6 @@
 # Zotero MCP Functions
 
-This document lists all MCP tools provided by the Zotero MCP Plugin.
+This document lists all MCP tools provided by the Zotero MCP Ext.
 
 ## Tool List
 

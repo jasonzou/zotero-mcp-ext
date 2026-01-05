@@ -50,10 +50,12 @@ export function getPreferredStyle(): string {
 export async function generateCitation(
   item: Zotero.Item,
   style: string = "apa",
-  format: "html" | "text" | "bibtex" = "text"
+  format: "html" | "text" | "bibtex" = "text",
 ): Promise<Record<string, any>> {
   const startTime = Date.now();
-  ztoolkit.log(`[CitationFormatter] Generating ${style} citation for item: ${item.key}`);
+  ztoolkit.log(
+    `[CitationFormatter] Generating ${style} citation for item: ${item.key}`,
+  );
 
   try {
     // Handle BibTeX separately
@@ -79,7 +81,9 @@ export async function generateCitation(
       //   formattedBibliography = await (item as any).getBibliography(style);
       // }
     } catch (citationError) {
-      ztoolkit.log(`[CitationFormatter] CSL citation error, using fallback: ${citationError}`);
+      ztoolkit.log(
+        `[CitationFormatter] CSL citation error, using fallback: ${citationError}`,
+      );
       // Fallback to manual citation construction
       citation = constructCitation(item, style);
     }
@@ -98,7 +102,9 @@ export async function generateCitation(
     // Get item metadata for response
     const metadata = getCitationMetadata(item, style);
 
-    ztoolkit.log(`[CitationFormatter] Citation generated in ${Date.now() - startTime}ms`);
+    ztoolkit.log(
+      `[CitationFormatter] Citation generated in ${Date.now() - startTime}ms`,
+    );
 
     return {
       itemKey: item.key,
@@ -115,7 +121,10 @@ export async function generateCitation(
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    ztoolkit.log(`[CitationFormatter] Error generating citation: ${err.message}`, "error");
+    ztoolkit.log(
+      `[CitationFormatter] Error generating citation: ${err.message}`,
+      "error",
+    );
     throw err;
   }
 }
@@ -126,10 +135,12 @@ export async function generateCitation(
 export async function generateMultipleCitations(
   items: Zotero.Item[],
   style: string = "apa",
-  format: "html" | "text" | "bibtex" = "text"
+  format: "html" | "text" | "bibtex" = "text",
 ): Promise<Record<string, any>> {
   const startTime = Date.now();
-  ztoolkit.log(`[CitationFormatter] Generating ${style} citations for ${items.length} items`);
+  ztoolkit.log(
+    `[CitationFormatter] Generating ${style} citations for ${items.length} items`,
+  );
 
   const citations: Array<Record<string, any>> = [];
   const errors: Array<{ itemKey: string; error: string }> = [];
@@ -166,7 +177,7 @@ export async function generateMultipleCitations(
  */
 function generateBibTeX(
   item: Zotero.Item,
-  format: "html" | "text"
+  format: "html" | "text",
 ): Record<string, any> {
   const key = generateBibTeXKey(item);
   const entryType = mapItemTypeToBibTeX(item.itemType);
@@ -179,7 +190,9 @@ function generateBibTeX(
   for (const creator of creators) {
     const lastName = (creator as any).lastName || "";
     const firstName = (creator as any).firstName || "";
-    const creatorType = Zotero.CreatorTypes.getName((creator as any).creatorTypeID);
+    const creatorType = Zotero.CreatorTypes.getName(
+      (creator as any).creatorTypeID,
+    );
 
     if (creatorType === "author") {
       if (lastName && firstName) {
@@ -198,17 +211,30 @@ function generateBibTeX(
   const fields: string[] = [];
 
   if (author) fields.push(`  author = {${author}}`);
-  if (item.getField("title")) fields.push(`  title = {${item.getField("title")}}`);
-  if (item.getField("date")) fields.push(`  year = {${item.getField("date").toString().substring(0, 4)}}`);
-  if (item.getField("publicationTitle")) fields.push(`  journal = {${item.getField("publicationTitle")}}`);
-  if (item.getField("volume")) fields.push(`  volume = {${item.getField("volume")}}`);
-  if (item.getField("issue")) fields.push(`  number = {${item.getField("issue")}}`);
-  if (item.getField("pages")) fields.push(`  pages = {${item.getField("pages")}}`);
+  if (item.getField("title"))
+    fields.push(`  title = {${item.getField("title")}}`);
+  if (item.getField("date"))
+    fields.push(
+      `  year = {${item.getField("date").toString().substring(0, 4)}}`,
+    );
+  if (item.getField("publicationTitle"))
+    fields.push(`  journal = {${item.getField("publicationTitle")}}`);
+  if (item.getField("volume"))
+    fields.push(`  volume = {${item.getField("volume")}}`);
+  if (item.getField("issue"))
+    fields.push(`  number = {${item.getField("issue")}}`);
+  if (item.getField("pages"))
+    fields.push(`  pages = {${item.getField("pages")}}`);
   if (item.getField("DOI")) fields.push(`  doi = {${item.getField("DOI")}}`);
   if (item.getField("url")) fields.push(`  url = {${item.getField("url")}}`);
   if (item.getField("abstractNote")) {
-    const abstract = item.getField("abstractNote").toString().replace(/[\r\n]+/g, " ");
-    fields.push(`  abstract = {${abstract.substring(0, 500)}${abstract.length > 500 ? "..." : ""}}`);
+    const abstract = item
+      .getField("abstractNote")
+      .toString()
+      .replace(/[\r\n]+/g, " ");
+    fields.push(
+      `  abstract = {${abstract.substring(0, 500)}${abstract.length > 500 ? "..." : ""}}`,
+    );
   }
 
   const bibtex = `@${entryType}{${key},
@@ -231,9 +257,13 @@ function generateBibTeXKey(item: Zotero.Item): string {
   let firstAuthor = "";
 
   for (const creator of creators) {
-    const creatorType = Zotero.CreatorTypes.getName((creator as any).creatorTypeID);
+    const creatorType = Zotero.CreatorTypes.getName(
+      (creator as any).creatorTypeID,
+    );
     if (creatorType === "author" && (creator as any).lastName) {
-      firstAuthor = (creator as any).lastName.toLowerCase().replace(/[^a-z]/g, "");
+      firstAuthor = (creator as any).lastName
+        .toLowerCase()
+        .replace(/[^a-z]/g, "");
       break;
     }
   }
@@ -242,7 +272,12 @@ function generateBibTeXKey(item: Zotero.Item): string {
     ? item.getField("date").toString().substring(0, 4)
     : "nodate";
   const titleWord = item.getField("title")
-    ? item.getField("title").toString().split(" ")[0].toLowerCase().replace(/[^a-z]/g, "")
+    ? item
+        .getField("title")
+        .toString()
+        .split(" ")[0]
+        .toLowerCase()
+        .replace(/[^a-z]/g, "")
     : "item";
 
   return `${firstAuthor}${year}${titleWord}`.substring(0, 50);
@@ -253,27 +288,27 @@ function generateBibTeXKey(item: Zotero.Item): string {
  */
 function mapItemTypeToBibTeX(itemType: string): string {
   const typeMap: Record<string, string> = {
-    "journalArticle": "article",
-    "book": "book",
-    "bookSection": "incollection",
-    "magazineArticle": "article",
-    "newspaperArticle": "article",
-    "thesis": "phdthesis",
-    "conferencePaper": "inproceedings",
-    "report": "techreport",
-    "webpage": "misc",
-    "document": "misc",
-    "email": "misc",
-    "audioRecording": "misc",
-    "videoRecording": "misc",
-    "film": "misc",
-    "artwork": "misc",
-    "presentation": "misc",
-    "interview": "misc",
-    "letter": "misc",
-    "memo": "misc",
-    "note": "misc",
-    "attachment": "misc",
+    journalArticle: "article",
+    book: "book",
+    bookSection: "incollection",
+    magazineArticle: "article",
+    newspaperArticle: "article",
+    thesis: "phdthesis",
+    conferencePaper: "inproceedings",
+    report: "techreport",
+    webpage: "misc",
+    document: "misc",
+    email: "misc",
+    audioRecording: "misc",
+    videoRecording: "misc",
+    film: "misc",
+    artwork: "misc",
+    presentation: "misc",
+    interview: "misc",
+    letter: "misc",
+    memo: "misc",
+    note: "misc",
+    attachment: "misc",
   };
 
   return typeMap[itemType] || "misc";
@@ -294,7 +329,9 @@ function constructCitation(item: Zotero.Item, style: string): string {
 
   // Format authors
   const authorNames = creators
-    .filter((c: any) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author")
+    .filter(
+      (c: any) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author",
+    )
     .map((c: any) => {
       if (c.lastName && c.firstName) {
         return `${c.lastName}, ${c.firstName.charAt(0)}.`;
@@ -316,7 +353,10 @@ function constructCitation(item: Zotero.Item, style: string): string {
       } else if (authorNames.length === 2) {
         return `${authorStr}. (${year}). ${title}.`;
       } else if (authorNames.length <= 20) {
-        const allAuthors = authorNames.slice(0, -1).join(", ") + ", & " + authorNames[authorNames.length - 1];
+        const allAuthors =
+          authorNames.slice(0, -1).join(", ") +
+          ", & " +
+          authorNames[authorNames.length - 1];
         return `${allAuthors}. (${year}). ${title}.`;
       } else {
         // APA 7th: up to 20 authors
@@ -351,9 +391,10 @@ function constructCitation(item: Zotero.Item, style: string): string {
 
     case "ieee":
       // IEEE format
-      const ieeeAuthors = authorNames.length <= 6
-        ? authorNames.join(authorNames.length > 2 ? ", " : " and ")
-        : `${authorNames.slice(0, 6).join(", ")} and ${authorNames.length - 6} others`;
+      const ieeeAuthors =
+        authorNames.length <= 6
+          ? authorNames.join(authorNames.length > 2 ? ", " : " and ")
+          : `${authorNames.slice(0, 6).join(", ")} and ${authorNames.length - 6} others`;
       const pubInfo = publicationTitle
         ? `${publicationTitle}${volume ? `, ${volume}` : ""}${issue ? `(${issue})` : ""}${pages ? `, ${pages}` : ""}`
         : "";
@@ -374,16 +415,22 @@ function constructCitation(item: Zotero.Item, style: string): string {
 
     case "nature":
       // Nature
-      const natureAuthors = authorNames.length <= 5
-        ? authorNames.join(", ")
-        : `${firstAuthorLast} et al.`;
+      const natureAuthors =
+        authorNames.length <= 5
+          ? authorNames.join(", ")
+          : `${firstAuthorLast} et al.`;
       return `${natureAuthors} ${title}. ${publicationTitle || ""}${volume ? ` ${volume}` : ""}${pages ? `, ${pages}` : ""} (${year}).`;
 
     case "vancouver":
       // Vancouver
-      const vanAuthors = authorNames.length <= 6
-        ? authorNames.map((n: string, i: number) => i === authorNames.length - 1 ? `& ${n}` : n).join(", ")
-        : `${authorNames.slice(0, 6).join(", ")} et al.`;
+      const vanAuthors =
+        authorNames.length <= 6
+          ? authorNames
+              .map((n: string, i: number) =>
+                i === authorNames.length - 1 ? `& ${n}` : n,
+              )
+              .join(", ")
+          : `${authorNames.slice(0, 6).join(", ")} et al.`;
       return `${vanAuthors}. ${title}. ${publicationTitle || ""}${volume ? ` ${volume}` : ""}${issue ? `(${issue})` : ""}:${pages || ""}. ${year}.`;
 
     default:
@@ -419,16 +466,16 @@ function stripHtmlTags(html: string): string {
  */
 function getStyleName(style: string): string {
   const styleNames: Record<string, string> = {
-    "apa": "APA (7th edition)",
+    apa: "APA (7th edition)",
     "apa-7": "APA (7th edition)",
     "chicago-author-date": "Chicago (Author-Date)",
-    "harvard1": "Harvard",
-    "ieee": "IEEE",
-    "mla": "MLA (9th edition)",
+    harvard1: "Harvard",
+    ieee: "IEEE",
+    mla: "MLA (9th edition)",
     "mla-9": "MLA (9th edition)",
-    "nature": "Nature",
-    "vancouver": "Vancouver",
-    "bibtex": "BibTeX",
+    nature: "Nature",
+    vancouver: "Vancouver",
+    bibtex: "BibTeX",
   };
   return styleNames[style.toLowerCase()] || style;
 }
@@ -436,14 +483,19 @@ function getStyleName(style: string): string {
 /**
  * Get citation metadata for an item
  */
-function getCitationMetadata(item: Zotero.Item, _style: string): Record<string, any> {
+function getCitationMetadata(
+  item: Zotero.Item,
+  _style: string,
+): Record<string, any> {
   return {
     itemKey: item.key,
     itemType: item.itemType,
     title: item.getDisplayTitle(),
     authors: item
       .getCreators()
-      .filter((c: any) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author")
+      .filter(
+        (c: any) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author",
+      )
       .map((c: any) => ({
         firstName: c.firstName || "",
         lastName: c.lastName || "",
@@ -465,8 +517,16 @@ function getCitationMetadata(item: Zotero.Item, _style: string): Record<string, 
  */
 export function isValidStyle(style: string): boolean {
   const validStyles = [
-    "apa", "apa-7", "chicago-author-date", "harvard1",
-    "ieee", "mla", "mla-9", "nature", "vancouver", "bibtex"
+    "apa",
+    "apa-7",
+    "chicago-author-date",
+    "harvard1",
+    "ieee",
+    "mla",
+    "mla-9",
+    "nature",
+    "vancouver",
+    "bibtex",
   ];
   return validStyles.includes(style.toLowerCase());
 }

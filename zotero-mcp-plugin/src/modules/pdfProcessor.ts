@@ -33,55 +33,60 @@ export class PDFProcessor {
       void (async () => {
         const message = (event as MessageEvent).data;
 
-      if (message.responseID) {
-        const { resolve, reject } = this._waitingPromises[message.responseID];
-        delete this._waitingPromises[message.responseID];
+        if (message.responseID) {
+          const { resolve, reject } = this._waitingPromises[message.responseID];
+          delete this._waitingPromises[message.responseID];
 
-        if (message.data) {
-          const textContent =
-            typeof message.data === "string" ? message.data : message.data.text;
-          if (textContent !== undefined) {
-            resolve({ text: textContent });
+          if (message.data) {
+            const textContent =
+              typeof message.data === "string"
+                ? message.data
+                : message.data.text;
+            if (textContent !== undefined) {
+              resolve({ text: textContent });
+            } else {
+              reject(new Error("PDF text extraction returned invalid format"));
+            }
           } else {
-            reject(new Error("PDF text extraction returned invalid format"));
-          }
-        } else {
-          reject(
-            new Error(JSON.stringify(message.error || "Unknown worker error")),
-          );
-        }
-        return;
-      }
-
-      if (message.id) {
-        let respData = null;
-        try {
-          if (message.action === "FetchBuiltInCMap") {
-            const response = await this.Zotero.HTTP.request(
-              "GET",
-              "resource://zotero/reader/pdf/web/cmaps/" +
-                message.data +
-                ".bcmap",
-              { responseType: "arraybuffer" },
+            reject(
+              new Error(
+                JSON.stringify(message.error || "Unknown worker error"),
+              ),
             );
-            respData = {
-              compressionType: 1,
-              cMapData: new Uint8Array(response.response),
-            };
-          } else if (message.action === "FetchStandardFontData") {
-            const response = await this.Zotero.HTTP.request(
-              "GET",
-              "resource://zotero/reader/pdf/web/standard_fonts/" + message.data,
-              { responseType: "arraybuffer" },
-            );
-            respData = new Uint8Array(response.response);
           }
-        } catch (e) {
-          this.ztoolkit.log("Failed to fetch font data:", e, "error");
+          return;
         }
 
-        this._worker!.postMessage({ responseID: message.id, data: respData });
-      }
+        if (message.id) {
+          let respData = null;
+          try {
+            if (message.action === "FetchBuiltInCMap") {
+              const response = await this.Zotero.HTTP.request(
+                "GET",
+                "resource://zotero/reader/pdf/web/cmaps/" +
+                  message.data +
+                  ".bcmap",
+                { responseType: "arraybuffer" },
+              );
+              respData = {
+                compressionType: 1,
+                cMapData: new Uint8Array(response.response),
+              };
+            } else if (message.action === "FetchStandardFontData") {
+              const response = await this.Zotero.HTTP.request(
+                "GET",
+                "resource://zotero/reader/pdf/web/standard_fonts/" +
+                  message.data,
+                { responseType: "arraybuffer" },
+              );
+              respData = new Uint8Array(response.response);
+            }
+          } catch (e) {
+            this.ztoolkit.log("Failed to fetch font data:", e, "error");
+          }
+
+          this._worker!.postMessage({ responseID: message.id, data: respData });
+        }
       })();
     });
 
@@ -164,7 +169,11 @@ export class PDFProcessor {
         throw new Error("文件读取失败 (IOUtils.read returned falsy)");
       }
 
-      const response = await this._query<{ info: any; metadata: any; numPages: number }>(
+      const response = await this._query<{
+        info: any;
+        metadata: any;
+        numPages: number;
+      }>(
         "getMetadata",
         {
           buf: fileData.buffer,
@@ -179,7 +188,11 @@ export class PDFProcessor {
         title: info.Title || undefined,
         author: info.Author || undefined,
         subject: info.Subject || undefined,
-        keywords: info.Keywords ? info.Keywords.split(/[,;]\s*/).filter((k: string) => k.trim().length > 0) : undefined,
+        keywords: info.Keywords
+          ? info.Keywords.split(/[,;]\s*/).filter(
+              (k: string) => k.trim().length > 0,
+            )
+          : undefined,
         creator: info.Creator || undefined,
         producer: info.Producer || undefined,
         creationDate: info.CreationDate || undefined,

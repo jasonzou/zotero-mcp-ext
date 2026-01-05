@@ -136,9 +136,9 @@ const TestHelpers = {
   async testPDFExtraction(pdfPath) {
     console.log(`\n📄 Testing PDF Extraction: ${pdfPath}\n`);
 
-    const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+    const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
     const { PDFMetadataExtractor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const extractor = new PDFMetadataExtractor(ztoolkit);
@@ -172,9 +172,9 @@ const TestHelpers = {
   async testWebServiceRetrieval(doi) {
     console.log(`\n🌐 Testing Web Service Retrieval: DOI ${doi}\n`);
 
-    const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+    const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
     const { ZoteroMetadataRetriever } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const retriever = new ZoteroMetadataRetriever(ztoolkit, 15000); // 15s timeout
@@ -243,13 +243,13 @@ const TestHelpers = {
     console.log('\n🎯 Running Complete Test Scenario\n');
     console.log('='.repeat(70));
 
-    const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+    const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
     const {
       PDFMetadataExtractor,
       ZoteroMetadataRetriever,
       ItemCreator
     } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     let itemKey = null;

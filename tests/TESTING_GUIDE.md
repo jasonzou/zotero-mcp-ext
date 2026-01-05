@@ -205,9 +205,9 @@ TestHelpers.compareMetadata(pdfMeta, webMeta);
 
 #### Test PDFMetadataExtractor
 ```javascript
-const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
 const { PDFMetadataExtractor } = ChromeUtils.import(
-  'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+  'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
 );
 
 const extractor = new PDFMetadataExtractor(ztoolkit);
@@ -223,7 +223,7 @@ extractor.terminate();
 #### Test ItemCreator
 ```javascript
 const { ItemCreator } = ChromeUtils.import(
-  'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+  'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
 );
 
 // Create item
@@ -262,7 +262,7 @@ await item.eraseTx();
 **Solution**:
 ```javascript
 // Check plugin is loaded
-Zotero.ZoteroMCP  // Should return object
+Zotero.ZoteroMCPExt  // Should return object
 
 // Verify plugin enabled
 // Go to: Tools → Add-ons → Extensions → Zotero MCP Plugin → Enable
@@ -277,7 +277,7 @@ Zotero.ZoteroMCP  // Should return object
 ```javascript
 // Wait a moment after Zotero starts
 // Try alternative access
-const ztoolkit = Zotero.ZoteroMCP?.addon?.data?.ztoolkit;
+const ztoolkit = Zotero.ZoteroMCPExt?.addon?.data?.ztoolkit;
 ```
 
 ### Tests Hang or Timeout
@@ -296,7 +296,7 @@ const retriever = new ZoteroMetadataRetriever(ztoolkit, 30000); // 30s
 ```javascript
 // Try older syntax
 const { PDFProcessor } = Cu.import(
-  'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+  'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
 );
 ```
 

@@ -35,8 +35,8 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           # Copy and rename the xpi file with version number
-          cp .scaffold/build/zotero-mcp-plugin.xpi ./zotero-mcp-plugin-${VERSION}.xpi
-          echo "xpi_filename=zotero-mcp-plugin-${VERSION}.xpi" >> $GITHUB_OUTPUT
+          cp .scaffold/build/zotero-mcp-ext.xpi ./zotero-mcp-ext-${VERSION}.xpi
+          echo "xpi_filename=zotero-mcp-ext-${VERSION}.xpi" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         id: create_release

@@ -170,7 +170,7 @@
   const TestUtils = {
     // Get ztoolkit
     getZtoolkit() {
-      return Zotero.ZoteroMCP?.addon?.ztoolkit;
+      return Zotero.ZoteroMCPExt?.addon?.ztoolkit;
     },
 
     // Create a test PDF file path (you'll need to replace with actual path)
@@ -250,7 +250,7 @@
 
     // Try to access PDFProcessor
     const { PDFProcessor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
     assert.exists(PDFProcessor, 'PDFProcessor should be importable');
   });
@@ -258,7 +258,7 @@
   TestRunner.test('PDFProcessor: Creates instance', async () => {
     const ztoolkit = TestUtils.getZtoolkit();
     const { PDFProcessor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const processor = new PDFProcessor(ztoolkit);
@@ -271,7 +271,7 @@
   TestRunner.test('PDFProcessor: extractMetadata returns object', async () => {
     const ztoolkit = TestUtils.getZtoolkit();
     const { PDFProcessor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const processor = new PDFProcessor(ztoolkit);
@@ -294,7 +294,7 @@
 
   TestRunner.test('PDFMetadataExtractor: Module loads correctly', async () => {
     const { PDFMetadataExtractor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
     assert.exists(PDFMetadataExtractor, 'PDFMetadataExtractor should be importable');
   });
@@ -302,7 +302,7 @@
   TestRunner.test('PDFMetadataExtractor: Creates instance', async () => {
     const ztoolkit = TestUtils.getZtoolkit();
     const { PDFMetadataExtractor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const extractor = new PDFMetadataExtractor(ztoolkit);
@@ -314,7 +314,7 @@
   TestRunner.test('PDFMetadataExtractor: Handles missing file gracefully', async () => {
     const ztoolkit = TestUtils.getZtoolkit();
     const { PDFMetadataExtractor } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const extractor = new PDFMetadataExtractor(ztoolkit);
@@ -330,7 +330,7 @@
 
   TestRunner.test('ZoteroMetadataRetriever: Module loads correctly', async () => {
     const { ZoteroMetadataRetriever } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
     assert.exists(ZoteroMetadataRetriever, 'ZoteroMetadataRetriever should be importable');
   });
@@ -338,7 +338,7 @@
   TestRunner.test('ZoteroMetadataRetriever: Creates instance', async () => {
     const ztoolkit = TestUtils.getZtoolkit();
     const { ZoteroMetadataRetriever } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const retriever = new ZoteroMetadataRetriever(ztoolkit);
@@ -352,7 +352,7 @@
   TestRunner.test('ZoteroMetadataRetriever: retrieveFromDOI handles invalid DOI', async () => {
     const ztoolkit = TestUtils.getZtoolkit();
     const { ZoteroMetadataRetriever } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const retriever = new ZoteroMetadataRetriever(ztoolkit, 5000); // 5s timeout
@@ -369,14 +369,14 @@
 
   TestRunner.test('ItemCreator: Module loads correctly', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
     assert.exists(ItemCreator, 'ItemCreator should be importable');
   });
 
   TestRunner.test('ItemCreator: Creates instance', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const creator = new ItemCreator();
@@ -387,7 +387,7 @@
 
   TestRunner.test('ItemCreator: enrichExistingItem fills empty fields', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     // Create test item with minimal data
@@ -428,7 +428,7 @@
 
   TestRunner.test('ItemCreator: enrichExistingItem with overwrite updates fields', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     // Create test item with data
@@ -467,7 +467,7 @@
 
   TestRunner.test('ItemCreator: enrichExistingItem handles non-existent item', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const creator = new ItemCreator();
@@ -486,7 +486,7 @@
 
   TestRunner.test('Integration: Create item with metadata merging', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     // Simulate having both web metadata and PDF metadata
@@ -513,7 +513,7 @@
 
   TestRunner.test('Integration: Metadata source tracking', async () => {
     const { ItemCreator } = ChromeUtils.import(
-      'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+      'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
     );
 
     const item = await TestUtils.createTestItem('journalArticle');
@@ -546,7 +546,7 @@
   TestRunner.log('\n🔧 Initializing test environment...\n', 'cyan');
 
   // Verify plugin is loaded
-  if (!Zotero.ZoteroMCP) {
+  if (!Zotero.ZoteroMCPExt) {
     TestRunner.log('❌ ERROR: Zotero MCP Plugin not loaded!', 'red');
     TestRunner.log('Please ensure the plugin is installed and enabled.', 'red');
     return;

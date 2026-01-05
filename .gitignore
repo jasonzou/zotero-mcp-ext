@@ -44,5 +44,5 @@ logs/
 .claude/
 
 # Zotero plugin specific
-zotero-mcp-plugin/addon/
-zotero-mcp-plugin/build/
+zotero-mcp-ext/addon/
+zotero-mcp-ext/build/

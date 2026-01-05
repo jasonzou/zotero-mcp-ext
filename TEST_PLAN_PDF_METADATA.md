@@ -1,7 +1,7 @@
 # Test Plan: PDF Metadata Extraction & Enrichment MCP Tools
 
 ## Overview
-This test plan covers the new `upload_pdf_and_create_item` and `enrich_item_from_pdf` MCP tools added to the Zotero MCP plugin.
+This test plan covers the new `upload_pdf_and_create_item` and `enrich_item_from_pdf` MCP tools added to the Zotero MCP ext.
 
 **Version**: 1.2.7
 **Date**: 2026-01-05
@@ -15,7 +15,7 @@ This test plan covers the new `upload_pdf_and_create_item` and `enrich_item_from
 
 ### Prerequisites
 1. **Zotero 7** installed and running
-2. **Plugin** installed: `zotero-mcp-plugin.xpi` (v1.2.7+)
+2. **Plugin** installed: `zotero-mcp-ext.xpi` (v1.2.7+)
 3. **MCP Server** enabled in plugin preferences
 4. **MCP Client** configured (Claude Desktop, Cherry Studio, or Cursor)
 5. **Test PDFs** prepared (see Test Data section)
@@ -55,8 +55,8 @@ This test plan covers the new `upload_pdf_and_create_item` and `enrich_item_from
 **Test Method**: Direct function calls in Zotero's Developer Console
 ```javascript
 // Zotero Developer Console
-const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
-const PDFProcessor = Components.utils.import("resource://zotero-mcp-plugin/pdfProcessor.js");
+const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
+const PDFProcessor = Components.utils.import("resource://zotero-mcp-ext/pdfProcessor.js");
 const processor = new PDFProcessor(ztoolkit);
 const metadata = await processor.extractMetadata("/path/to/test.pdf");
 console.log(JSON.stringify(metadata, null, 2));

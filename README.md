@@ -2,7 +2,7 @@
 
 Zotero MCP is an open-source project designed to seamlessly integrate powerful AI capabilities with the leading reference management tool, Zotero, through the Model Context Protocol (MCP). This project consists of two core components: a Zotero plugin and an MCP server, which work together to provide AI assistants (like Claude) with the ability to interact with your local Zotero library.
 _This README is also available in: [:cn: 简体中文](./README-zh.md) | :gb: English._
-[![GitHub](https://img.shields.io/badge/GitHub-zotero--mcp-blue?logo=github)](https://github.com/cookjohn/zotero-mcp)
+[![GitHub](https://img.shields.io/badge/GitHub-zotero--mcp-blue?logo=github)](https://github.com/jasonzou/zotero-mcp)
 [![zotero target version](https://img.shields.io/badge/Zotero-7-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org)
@@ -30,7 +30,7 @@ This enables AI assistants to help you with academic tasks such as literature re
 
 This project now features a **unified architecture** with an integrated MCP server:
 
-- **`zotero-mcp-plugin/`**: A Zotero plugin with **integrated MCP server** that communicates directly with AI clients via Streamable HTTP protocol
+- **`zotero-mcp-ext/`**: A Zotero plugin with **integrated MCP server** that communicates directly with AI clients via Streamable HTTP protocol
 - **`IMG/`**: Screenshots and documentation images
 - **`README.md`** / **`README-zh.md`**: Documentation files
 
@@ -56,7 +56,7 @@ Simply put, Zotero MCP is a bridge connecting your AI client (like Cherry Studio
 **Two-Step Quick Start:**
 
 1.  **Install the Plugin**:
-    *   Go to the project's [Releases Page](https://github.com/cookjohn/zotero-mcp/releases) to download the latest `zotero-mcp-plugin-x.x.x.xpi` file.
+    *   Go to the project's [Releases Page](https://github.com/jasonzou/zotero-mcp-ext/releases) to download the latest `zotero-mcp-ext-x.x.x.xpi` file.
     *   In Zotero, install the `.xpi` file via `Tools -> Add-ons`.
     *   Restart Zotero.
 
@@ -102,7 +102,7 @@ For detailed client-specific configuration instructions, see the [Chinese README
 
 ### Step 1: Install and Configure the Zotero Plugin
 
-1.  Download the latest `zotero-mcp-plugin.xpi` from the [Releases Page](https://github.com/cookjohn/zotero-mcp/releases).
+1.  Download the latest `zotero-mcp-ext.xpi` from the [Releases Page](https://github.com/jasonzou/zotero-mcp-ext/releases).
 2.  Install it in Zotero via `Tools -> Add-ons`.
 3.  Enable the server in `Preferences -> Zotero MCP Plugin`.
 
@@ -110,13 +110,13 @@ For detailed client-specific configuration instructions, see the [Chinese README
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/cookjohn/zotero-mcp.git
+    git clone https://github.com/jasonzou/zotero-mcp.git
     cd zotero-mcp
     ```
     
 2.  Set up the plugin development environment:
     ```bash
-    cd zotero-mcp-plugin
+    cd zotero-mcp-ext
     npm install
     npm run build
     ```
@@ -154,7 +154,7 @@ Example configuration for Claude Desktop:
 
 ## 🧩 Features
 
-### `zotero-mcp-plugin` Features
+### `zotero-mcp-ext` Features
 
 -   **Integrated MCP Server**: Built-in MCP server using Streamable HTTP protocol
 -   **Streamable HTTP Protocol**: Real-time bidirectional communication with AI clients

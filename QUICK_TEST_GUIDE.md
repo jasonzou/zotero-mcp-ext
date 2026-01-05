@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - ✅ Zotero 7 running
-- ✅ Plugin installed (`zotero-mcp-plugin.xpi`)
+- ✅ Plugin installed (`zotero-mcp-ext.xpi`)
 - ✅ MCP server enabled and running
 - ✅ Claude Desktop (or another MCP client) connected
 - ✅ A sample academic PDF ready
@@ -137,10 +137,10 @@ curl -X POST http://localhost:23120/mcp \
 ### Test PDFMetadataExtractor
 ```javascript
 // Get the ztoolkit
-const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
 
 // Import the extractor
-const { PDFMetadataExtractor } = ChromeUtils.import("chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js");
+const { PDFMetadataExtractor } = ChromeUtils.import("chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js");
 
 // Extract metadata
 const extractor = new PDFMetadataExtractor(ztoolkit);
@@ -150,7 +150,7 @@ console.log(JSON.stringify(metadata, null, 2));
 
 ### Test ZoteroMetadataRetriever
 ```javascript
-const { ZoteroMetadataRetriever } = ChromeUtils.import("chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js");
+const { ZoteroMetadataRetriever } = ChromeUtils.import("chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js");
 
 const retriever = new ZoteroMetadataRetriever(ztoolkit);
 const webMeta = await retriever.retrieveFromPDF("/Users/yourname/Downloads/paper.pdf");
@@ -160,7 +160,7 @@ retriever.terminate();
 
 ### Test ItemCreator
 ```javascript
-const { ItemCreator } = ChromeUtils.import("chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js");
+const { ItemCreator } = ChromeUtils.import("chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js");
 
 const creator = new ItemCreator();
 const result = await creator.createItemFromPDF(

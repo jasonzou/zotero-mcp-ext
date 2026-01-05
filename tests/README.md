@@ -161,9 +161,9 @@ You can also test modules individually in the console:
 
 ### Test PDFMetadataExtractor
 ```javascript
-const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
 const { PDFMetadataExtractor } = ChromeUtils.import(
-  'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+  'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
 );
 
 const extractor = new PDFMetadataExtractor(ztoolkit);
@@ -174,9 +174,9 @@ extractor.terminate();
 
 ### Test ZoteroMetadataRetriever
 ```javascript
-const ztoolkit = Zotero.ZoteroMCP.addon.ztoolkit;
+const ztoolkit = Zotero.ZoteroMCPExt.addon.ztoolkit;
 const { ZoteroMetadataRetriever } = ChromeUtils.import(
-  'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+  'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
 );
 
 const retriever = new ZoteroMetadataRetriever(ztoolkit);
@@ -191,7 +191,7 @@ retriever.terminate();
 ### Test ItemCreator
 ```javascript
 const { ItemCreator } = ChromeUtils.import(
-  'chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js'
+  'chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js'
 );
 
 // Create test item
@@ -230,7 +230,7 @@ await item.eraseTx();
 **Solution:**
 ```javascript
 // Check plugin status
-Zotero.ZoteroMCP  // Should return object, not undefined
+Zotero.ZoteroMCPExt  // Should return object, not undefined
 ```
 
 ### Issue: Tests fail with "SKIP: No test PDF"
@@ -243,7 +243,7 @@ Zotero.ZoteroMCP  // Should return object, not undefined
 **Solution:**
 ```javascript
 // Try alternative import method
-const { PDFProcessor } = Cu.import('chrome://zotero-mcp-plugin/content/scripts/zotero-mcp-plugin.js');
+const { PDFProcessor } = Cu.import('chrome://zotero-mcp-ext/content/scripts/zotero-mcp-ext.js');
 ```
 
 ---

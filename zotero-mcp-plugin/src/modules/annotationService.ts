@@ -5,7 +5,7 @@
 
 declare let ztoolkit: ZToolkit;
 
-import { TextFormatter } from './textFormatter';
+import { TextFormatter } from "./textFormatter";
 
 // 注释内容接口
 export interface AnnotationContent {
@@ -48,20 +48,20 @@ export class AnnotationService {
    */
   private smartTruncate(text: string, maxLength: number = 200): string {
     if (!text || text.length <= maxLength) return text;
-    
+
     const truncated = text.substring(0, maxLength);
     // 寻找最后一个句号或换行
     const lastPeriod = Math.max(
-      truncated.lastIndexOf('。'),
-      truncated.lastIndexOf('.'),
-      truncated.lastIndexOf('\n')
+      truncated.lastIndexOf("。"),
+      truncated.lastIndexOf("."),
+      truncated.lastIndexOf("\n"),
     );
-    
+
     // 如果找到合适的句子边界且不会截断太多内容
     if (lastPeriod > maxLength * 0.6) {
       return truncated.substring(0, lastPeriod + 1) + "...";
     }
-    
+
     return truncated + "...";
   }
 
@@ -70,23 +70,47 @@ export class AnnotationService {
    */
   private extractKeywords(text: string, maxCount: number = 5): string[] {
     if (!text) return [];
-    
+
     // 简单的关键词提取：移除停用词，按词频排序
-    const stopWords = new Set(['的', '了', '在', '是', '和', '与', '或', '但', '然而', '因此', '所以', 
-                              'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with']);
-    
+    const stopWords = new Set([
+      "的",
+      "了",
+      "在",
+      "是",
+      "和",
+      "与",
+      "或",
+      "但",
+      "然而",
+      "因此",
+      "所以",
+      "the",
+      "a",
+      "an",
+      "and",
+      "or",
+      "but",
+      "in",
+      "on",
+      "at",
+      "to",
+      "for",
+      "of",
+      "with",
+    ]);
+
     const words = text
       .toLowerCase()
-      .replace(/[^\w\s\u4e00-\u9fa5]/g, ' ') // 保留中英文字符
+      .replace(/[^\w\s\u4e00-\u9fa5]/g, " ") // 保留中英文字符
       .split(/\s+/)
-      .filter(word => word.length > 1 && !stopWords.has(word));
-    
+      .filter((word) => word.length > 1 && !stopWords.has(word));
+
     // 统计词频
     const wordCount = new Map<string, number>();
-    words.forEach(word => {
+    words.forEach((word) => {
       wordCount.set(word, (wordCount.get(word) || 0) + 1);
     });
-    
+
     // 按频率排序并返回前N个
     return Array.from(wordCount.entries())
       .sort((a, b) => b[1] - a[1])
@@ -97,28 +121,41 @@ export class AnnotationService {
   /**
    * 处理注释内容，根据需要返回简化或完整版本
    */
-  private processAnnotationContent(annotation: AnnotationContent, detailed: boolean = false): AnnotationContent {
+  private processAnnotationContent(
+    annotation: AnnotationContent,
+    detailed: boolean = false,
+  ): AnnotationContent {
     if (detailed) {
       return annotation; // 返回完整内容
     }
-    
+
     // 创建简化版本
     const processed: AnnotationContent = {
       ...annotation,
       content: this.smartTruncate(annotation.content),
-      text: annotation.text ? this.smartTruncate(annotation.text, 150) : annotation.text,
-      comment: annotation.comment ? this.smartTruncate(annotation.comment, 100) : annotation.comment,
+      text: annotation.text
+        ? this.smartTruncate(annotation.text, 150)
+        : annotation.text,
+      comment: annotation.comment
+        ? this.smartTruncate(annotation.comment, 100)
+        : annotation.comment,
     };
-    
+
     // 添加额外的元数据
     (processed as any).contentMeta = {
       isPreview: !detailed,
       originalLength: annotation.content?.length || 0,
       textLength: annotation.text?.length || 0,
       commentLength: annotation.comment?.length || 0,
-      keywords: this.extractKeywords(annotation.content + " " + (annotation.text || "") + " " + (annotation.comment || ""))
+      keywords: this.extractKeywords(
+        annotation.content +
+          " " +
+          (annotation.text || "") +
+          " " +
+          (annotation.comment || ""),
+      ),
     };
-    
+
     return processed;
   }
 
@@ -336,7 +373,8 @@ export class AnnotationService {
       }
 
       // 处理内容（简化或完整）
-      const detailed = params.detailed === true || String(params.detailed) === "true";
+      const detailed =
+        params.detailed === true || String(params.detailed) === "true";
 
       // 排序
       const sort = params.sort || "dateModified";
@@ -345,15 +383,18 @@ export class AnnotationService {
 
       // 分页 - 为preview模式使用更小的默认值
       const defaultLimit = detailed ? "50" : "20"; // preview模式默认20条，详细模式50条
-      const limit = Math.min(parseInt(params.limit || defaultLimit, 10), detailed ? 200 : 100);
+      const limit = Math.min(
+        parseInt(params.limit || defaultLimit, 10),
+        detailed ? 200 : 100,
+      );
       const offset = parseInt(params.offset || "0", 10);
       const totalCount = filteredAnnotations.length;
       const paginatedResults = filteredAnnotations.slice(
         offset,
         offset + limit,
       );
-      const processedResults = paginatedResults.map(annotation => 
-        this.processAnnotationContent(annotation, detailed)
+      const processedResults = paginatedResults.map((annotation) =>
+        this.processAnnotationContent(annotation, detailed),
       );
 
       const searchTime = `${Date.now() - startTime}ms`;
@@ -401,7 +442,7 @@ export class AnnotationService {
         preserveParagraphs: true,
         preserveHeadings: false, // 注释中通常不需要标题格式
         preserveLists: true,
-        preserveEmphasis: false
+        preserveEmphasis: false,
       });
 
       return {
@@ -617,24 +658,31 @@ export class AnnotationService {
   /**
    * 根据ID获取注释的完整内容
    */
-  async getAnnotationById(annotationId: string): Promise<AnnotationContent | null> {
+  async getAnnotationById(
+    annotationId: string,
+  ): Promise<AnnotationContent | null> {
     try {
-      ztoolkit.log(`[AnnotationService] Getting annotation by ID: ${annotationId}`);
-      
+      ztoolkit.log(
+        `[AnnotationService] Getting annotation by ID: ${annotationId}`,
+      );
+
       // 尝试从笔记中查找
       const notes = await this.getAllNotes();
-      const note = notes.find(n => n.id === annotationId);
+      const note = notes.find((n) => n.id === annotationId);
       if (note) {
         return note;
       }
 
       // 从所有PDF注释中查找
-      const allItems = await Zotero.Items.getAll(Zotero.Libraries.userLibraryID);
-      for (const item of allItems.slice(0, 100)) { // 限制搜索范围避免性能问题
+      const allItems = await Zotero.Items.getAll(
+        Zotero.Libraries.userLibraryID,
+      );
+      for (const item of allItems.slice(0, 100)) {
+        // 限制搜索范围避免性能问题
         if (item.isRegularItem() && !item.isNote() && !item.isAttachment()) {
           try {
             const annotations = await this.getPDFAnnotations(item.key);
-            const annotation = annotations.find(a => a.id === annotationId);
+            const annotation = annotations.find((a) => a.id === annotationId);
             if (annotation) {
               return annotation;
             }
@@ -646,7 +694,10 @@ export class AnnotationService {
 
       return null;
     } catch (error) {
-      ztoolkit.log(`[AnnotationService] Error getting annotation by ID: ${error}`, "error");
+      ztoolkit.log(
+        `[AnnotationService] Error getting annotation by ID: ${error}`,
+        "error",
+      );
       throw error;
     }
   }
@@ -654,22 +705,29 @@ export class AnnotationService {
   /**
    * 批量获取注释的完整内容
    */
-  async getAnnotationsByIds(annotationIds: string[]): Promise<AnnotationContent[]> {
+  async getAnnotationsByIds(
+    annotationIds: string[],
+  ): Promise<AnnotationContent[]> {
     try {
-      ztoolkit.log(`[AnnotationService] Getting annotations by IDs: ${annotationIds.join(", ")}`);
-      
+      ztoolkit.log(
+        `[AnnotationService] Getting annotations by IDs: ${annotationIds.join(", ")}`,
+      );
+
       const results: AnnotationContent[] = [];
-      
+
       for (const id of annotationIds) {
         const annotation = await this.getAnnotationById(id);
         if (annotation) {
           results.push(annotation);
         }
       }
-      
+
       return results;
     } catch (error) {
-      ztoolkit.log(`[AnnotationService] Error getting annotations by IDs: ${error}`, "error");
+      ztoolkit.log(
+        `[AnnotationService] Error getting annotations by IDs: ${error}`,
+        "error",
+      );
       throw error;
     }
   }

@@ -17,11 +17,11 @@ const {
   config: { addonID },
 } = packageJson;
 
-const repoUrl = "https://github.com/cookjohn/zotero-mcp";
+const repoUrl = "https://github.com/jasonzou/zotero-mcp";
 
 function generateUpdateJson(isBeta = false) {
   const currentVersion = isBeta ? `${version}-beta.0` : version;
-  const updateLink = `${repoUrl}/releases/download/v${currentVersion}/zotero-mcp-plugin-${currentVersion}.xpi`;
+  const updateLink = `${repoUrl}/releases/download/v${currentVersion}/zotero-mcp-ext-${currentVersion}.xpi`;
 
   return {
     addons: {
