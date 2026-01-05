@@ -1065,6 +1065,112 @@ export class HttpServer {
             },
           },
         },
+        {
+          name: "get_item_citation",
+          description: "Generate a citation for a specific item in various CSL styles (APA, Chicago, Harvard, IEEE, MLA, Nature, Vancouver, BibTeX)",
+          category: "retrieval",
+          parameters: {
+            itemKey: {
+              type: "string",
+              description: "Item key",
+              required: true,
+            },
+            style: {
+              type: "string",
+              enum: ["apa", "chicago-author-date", "harvard1", "ieee", "mla", "nature", "vancouver", "bibtex"],
+              description: "Citation style (default: apa)",
+              required: false,
+            },
+            format: {
+              type: "string",
+              enum: ["html", "text", "bibtex"],
+              description: "Output format (default: html)",
+              required: false,
+            },
+          },
+        },
+        {
+          name: "upload_pdf_and_create_item",
+          description: "Upload a PDF file, extract metadata using Zotero web service and PDF properties, and create a new Zotero item with the PDF attached",
+          category: "management",
+          parameters: {
+            pdfPath: {
+              type: "string",
+              description: "Absolute path to the PDF file to upload",
+              required: true,
+            },
+            collectionKey: {
+              type: "string",
+              description: "Optional collection key to add the item to",
+              required: false,
+            },
+            itemType: {
+              type: "string",
+              description: "Optional item type override (default: auto-detect from metadata)",
+              required: false,
+            },
+            useWebService: {
+              type: "boolean",
+              description: "Use Zotero web service to retrieve metadata (default: true)",
+              required: false,
+            },
+            extractPDFProperties: {
+              type: "boolean",
+              description: "Extract metadata from PDF document properties (default: true)",
+              required: false,
+            },
+          },
+        },
+        {
+          name: "enrich_item_from_pdf",
+          description: "Enrich an existing Zotero item by extracting metadata from its PDF attachment using Zotero web service and PDF properties",
+          category: "management",
+          parameters: {
+            itemKey: {
+              type: "string",
+              description: "Item key to enrich",
+              required: true,
+            },
+            attachmentKey: {
+              type: "string",
+              description: "Specific PDF attachment key (default: use first PDF attachment)",
+              required: false,
+            },
+            useWebService: {
+              type: "boolean",
+              description: "Use Zotero web service to retrieve metadata (default: true)",
+              required: false,
+            },
+            extractPDFProperties: {
+              type: "boolean",
+              description: "Extract metadata from PDF document properties (default: true)",
+              required: false,
+            },
+            overwriteExisting: {
+              type: "boolean",
+              description: "Overwrite existing field values (default: false, only fill empty fields)",
+              required: false,
+            },
+            fieldsToUpdate: {
+              type: "array",
+              items: { type: "string" },
+              description: "Limit updates to specific fields (default: all fields)",
+              required: false,
+            },
+          },
+        },
+        {
+          name: "extract_pdf_metadata",
+          description: "Extract metadata from a PDF attachment including author, title, abstract, keywords, journal info, and DOI",
+          category: "management",
+          parameters: {
+            attachmentKey: {
+              type: "string",
+              description: "PDF attachment key to extract metadata from",
+              required: true,
+            },
+          },
+        },
       ],
       endpoints: {
         mcp: {
