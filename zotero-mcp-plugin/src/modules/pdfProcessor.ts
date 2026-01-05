@@ -29,8 +29,9 @@ export class PDFProcessor {
     this._worker = new Worker(
       "chrome://zotero/content/xpcom/pdfWorker/worker.js",
     );
-    this._worker.addEventListener("message", async (event: MessageEvent) => {
-      const message = event.data;
+    this._worker.addEventListener("message", (event) => {
+      void (async () => {
+        const message = (event as MessageEvent).data;
 
       if (message.responseID) {
         const { resolve, reject } = this._waitingPromises[message.responseID];
@@ -81,6 +82,7 @@ export class PDFProcessor {
 
         this._worker!.postMessage({ responseID: message.id, data: respData });
       }
+      })();
     });
 
     this._worker.addEventListener("error", (error) => {

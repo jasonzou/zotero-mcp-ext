@@ -1,24 +1,24 @@
 {
-  "name": "zotero-mcp-plugin",
+  "name": "zotero-mcp-plugin-ext",
   "type": "module",
-  "version": "1.2.7",
-  "description": "Zotero MCP Plugin",
+  "version": "1.2.9",
+  "description": "Zotero MCP Plugin Ext",
   "config": {
-    "addonName": "Zotero MCP Plugin",
-    "addonID": "zotero-mcp-plugin@autoagent.my",
-    "addonRef": "zotero-mcp-plugin",
-    "addonInstance": "ZoteroMCP",
-    "prefsPrefix": "extensions.zotero.zotero-mcp-plugin"
+    "addonName": "Zotero MCP Plugin Ext",
+    "addonID": "zotero-mcp-plugin-ext@autoagent.my",
+    "addonRef": "zotero-mcp-plugin-ext",
+    "addonInstance": "ZoteroMCPExt",
+    "prefsPrefix": "extensions.zotero.zotero-mcp-plugin-ext"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cookjohn/zotero-mcp.git"
+    "url": "git+https://github.com/jasonzou/zotero-mcp-ext.git"
   },
   "author": "cookjohn",
   "bugs": {
-    "url": "https://github.com/cookjohn/zotero-mcp/issues"
+    "url": "https://github.com/jasonzou/zotero-mcp-ext/issues"
   },
-  "homepage": "https://github.com/cookjohn/zotero-mcp#readme",
+  "homepage": "https://github.com/jasonzou/zotero-mcp#readme",
   "license": "MIT",
   "scripts": {
     "start": "zotero-plugin serve",

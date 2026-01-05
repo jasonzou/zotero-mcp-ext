@@ -3,7 +3,10 @@
  * Generates citations in various CSL styles
  */
 
+/// <reference types="zotero-types" />
+
 declare let ztoolkit: ZToolkit;
+declare const Zotero: any;
 
 /**
  * Get available citation styles
@@ -55,12 +58,11 @@ export async function generateCitation(
   try {
     // Handle BibTeX separately
     if (style === "bibtex" || format === "bibtex") {
-      return generateBibTeX(item, format);
+      return generateBibTeX(item, "text");
     }
 
     // For CSL styles, use Zotero's citation API
     let citation: string;
-    let formattedBibliography: string = "";
 
     try {
       // Use Zotero's built-in citation generation
@@ -73,9 +75,9 @@ export async function generateCitation(
       }
 
       // Get full bibliography entry
-      if (typeof (item as any).getBibliography === "function") {
-        formattedBibliography = await (item as any).getBibliography(style);
-      }
+      // if (typeof (item as any).getBibliography === "function") {
+      //   formattedBibliography = await (item as any).getBibliography(style);
+      // }
     } catch (citationError) {
       ztoolkit.log(`[CitationFormatter] CSL citation error, using fallback: ${citationError}`);
       // Fallback to manual citation construction
@@ -87,10 +89,6 @@ export async function generateCitation(
     switch (format) {
       case "html":
         output = citation;
-        break;
-      case "bibtex":
-        const bibtex = generateBibTeX(item, "text");
-        output = bibtex.citation;
         break;
       default:
         // Strip HTML tags for plain text
@@ -110,7 +108,7 @@ export async function generateCitation(
       format,
       citation: output,
       formattedCitation: citation,
-      bibtex: format === "bibtex" ? null : generateBibTeX(item, "text").citation,
+      bibtex: generateBibTeX(item, format).citation,
       metadata,
       generatedAt: new Date().toISOString(),
       processingTime: `${Date.now() - startTime}ms`,
@@ -179,9 +177,9 @@ function generateBibTeX(
   const authorFirstParts: string[] = [];
 
   for (const creator of creators) {
-    const lastName = creator.lastName || "";
-    const firstName = creator.firstName || "";
-    const creatorType = Zotero.CreatorTypes.getName(creator.creatorTypeID);
+    const lastName = (creator as any).lastName || "";
+    const firstName = (creator as any).firstName || "";
+    const creatorType = Zotero.CreatorTypes.getName((creator as any).creatorTypeID);
 
     if (creatorType === "author") {
       if (lastName && firstName) {
@@ -195,7 +193,6 @@ function generateBibTeX(
   }
 
   const author = authorParts.join(" and ");
-  const shortAuthor = authorFirstParts.join(" and ");
 
   // Build BibTeX entry
   const fields: string[] = [];
@@ -234,9 +231,9 @@ function generateBibTeXKey(item: Zotero.Item): string {
   let firstAuthor = "";
 
   for (const creator of creators) {
-    const creatorType = Zotero.CreatorTypes.getName(creator.creatorTypeID);
-    if (creatorType === "author" && creator.lastName) {
-      firstAuthor = creator.lastName.toLowerCase().replace(/[^a-z]/g, "");
+    const creatorType = Zotero.CreatorTypes.getName((creator as any).creatorTypeID);
+    if (creatorType === "author" && (creator as any).lastName) {
+      firstAuthor = (creator as any).lastName.toLowerCase().replace(/[^a-z]/g, "");
       break;
     }
   }
@@ -277,7 +274,6 @@ function mapItemTypeToBibTeX(itemType: string): string {
     "memo": "misc",
     "note": "misc",
     "attachment": "misc",
-    "note": "misc",
   };
 
   return typeMap[itemType] || "misc";
@@ -295,17 +291,15 @@ function constructCitation(item: Zotero.Item, style: string): string {
   const volume = item.getField("volume");
   const issue = item.getField("issue");
   const pages = item.getField("pages");
-  const doi = item.getField("DOI");
-  const url = item.getField("url");
 
   // Format authors
   const authorNames = creators
-    .filter((c) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author")
-    .map((c) => {
+    .filter((c: any) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author")
+    .map((c: any) => {
       if (c.lastName && c.firstName) {
         return `${c.lastName}, ${c.firstName.charAt(0)}.`;
       }
-      return c.lastName || c.name || "";
+      return c.lastName || "";
     });
 
   const authorStr = authorNames.join(", ");
@@ -388,7 +382,7 @@ function constructCitation(item: Zotero.Item, style: string): string {
     case "vancouver":
       // Vancouver
       const vanAuthors = authorNames.length <= 6
-        ? authorNames.map((n, i) => i === authorNames.length - 1 ? `& ${n}` : n).join(", ")
+        ? authorNames.map((n: string, i: number) => i === authorNames.length - 1 ? `& ${n}` : n).join(", ")
         : `${authorNames.slice(0, 6).join(", ")} et al.`;
       return `${vanAuthors}. ${title}. ${publicationTitle || ""}${volume ? ` ${volume}` : ""}${issue ? `(${issue})` : ""}:${pages || ""}. ${year}.`;
 
@@ -442,15 +436,15 @@ function getStyleName(style: string): string {
 /**
  * Get citation metadata for an item
  */
-function getCitationMetadata(item: Zotero.Item, style: string): Record<string, any> {
+function getCitationMetadata(item: Zotero.Item, _style: string): Record<string, any> {
   return {
     itemKey: item.key,
     itemType: item.itemType,
     title: item.getDisplayTitle(),
     authors: item
       .getCreators()
-      .filter((c) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author")
-      .map((c) => ({
+      .filter((c: any) => Zotero.CreatorTypes.getName(c.creatorTypeID) === "author")
+      .map((c: any) => ({
         firstName: c.firstName || "",
         lastName: c.lastName || "",
         fullName: `${c.firstName || ""} ${c.lastName || ""}`.trim(),
