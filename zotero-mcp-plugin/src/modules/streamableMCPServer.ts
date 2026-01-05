@@ -14,6 +14,9 @@ import { SmartAnnotationExtractor } from './smartAnnotationExtractor';
 import { MCPSettingsService } from './mcpSettingsService';
 import { AIInstructionsManager } from './aiInstructionsManager';
 import { generateCitation, generateMultipleCitations, getDefaultStyle } from './citationFormatter';
+import { PDFMetadataExtractor } from './pdfMetadataExtractor';
+import { ZoteroMetadataRetriever } from './zoteroMetadataRetriever';
+import { ItemCreator } from './itemCreator';
 
 declare let Zotero: any;
 
@@ -785,6 +788,76 @@ export class StreamableMCPServer {
           required: ['itemKey'],
         },
       },
+      {
+        name: 'upload_pdf_and_create_item',
+        description: 'Upload a PDF file, extract metadata using Zotero web service and PDF properties, and create a new Zotero item with the PDF attached',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            pdfPath: {
+              type: 'string',
+              description: 'Absolute path to the PDF file to upload'
+            },
+            collectionKey: {
+              type: 'string',
+              description: 'Optional collection key to add the item to'
+            },
+            itemType: {
+              type: 'string',
+              description: 'Optional item type override (default: auto-detect from metadata)'
+            },
+            useWebService: {
+              type: 'boolean',
+              default: true,
+              description: 'Use Zotero web service to retrieve metadata (default: true)'
+            },
+            extractPDFProperties: {
+              type: 'boolean',
+              default: true,
+              description: 'Extract metadata from PDF document properties (default: true)'
+            },
+          },
+          required: ['pdfPath'],
+        },
+      },
+      {
+        name: 'enrich_item_from_pdf',
+        description: 'Enrich an existing Zotero item by extracting metadata from its PDF attachment using Zotero web service and PDF properties',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            itemKey: {
+              type: 'string',
+              description: 'Item key to enrich'
+            },
+            attachmentKey: {
+              type: 'string',
+              description: 'Specific PDF attachment key (default: use first PDF attachment)'
+            },
+            overwriteExisting: {
+              type: 'boolean',
+              default: false,
+              description: 'Overwrite existing field values (default: false, only fill empty fields)'
+            },
+            useWebService: {
+              type: 'boolean',
+              default: true,
+              description: 'Use Zotero web service to retrieve metadata (default: true)'
+            },
+            extractPDFProperties: {
+              type: 'boolean',
+              default: true,
+              description: 'Extract metadata from PDF document properties (default: true)'
+            },
+            fieldsToUpdate: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Limit updates to specific fields (default: all fields)'
+            },
+          },
+          required: ['itemKey'],
+        },
+      },
     ];
 
     return this.createResponse(request.id, { tools });
@@ -877,6 +950,20 @@ export class StreamableMCPServer {
             throw new Error('itemKey is required');
           }
           result = await this.callGetItemCitation(args);
+          break;
+
+        case 'upload_pdf_and_create_item':
+          if (!args?.pdfPath) {
+            throw new Error('pdfPath is required');
+          }
+          result = await this.callUploadPdfAndCreateItem(args);
+          break;
+
+        case 'enrich_item_from_pdf':
+          if (!args?.itemKey) {
+            throw new Error('itemKey is required');
+          }
+          result = await this.callEnrichItemFromPdf(args);
           break;
 
         default:
@@ -1188,6 +1275,221 @@ export class StreamableMCPServer {
 
     const result = await generateCitation(item, effectiveStyle, effectiveFormat);
     return applyGlobalAIInstructions(result, 'get_item_citation');
+  }
+
+  private async callUploadPdfAndCreateItem(args: any): Promise<any> {
+    const {
+      pdfPath,
+      collectionKey,
+      itemType,
+      useWebService = true,
+      extractPDFProperties = true
+    } = args;
+
+    try {
+      ztoolkit.log('[StreamableMCP] upload_pdf_and_create_item:', { pdfPath, collectionKey });
+
+      let webMetadata = null;
+      let pdfMetadata = null;
+
+      // Extract metadata from web service
+      if (useWebService) {
+        const retriever = new ZoteroMetadataRetriever(ztoolkit);
+        try {
+          webMetadata = await retriever.retrieveFromPDF(pdfPath);
+          ztoolkit.log('[StreamableMCP] Web metadata retrieved:', webMetadata);
+        } catch (error) {
+          ztoolkit.log('[StreamableMCP] Web metadata retrieval failed:', error, 'error');
+        } finally {
+          retriever.terminate();
+        }
+      }
+
+      // Extract metadata from PDF properties
+      if (extractPDFProperties) {
+        const extractor = new PDFMetadataExtractor(ztoolkit);
+        try {
+          pdfMetadata = await extractor.extractMetadata(pdfPath);
+          ztoolkit.log('[StreamableMCP] PDF metadata extracted:', pdfMetadata);
+        } catch (error) {
+          ztoolkit.log('[StreamableMCP] PDF metadata extraction failed:', error, 'error');
+        } finally {
+          extractor.terminate();
+        }
+      }
+
+      // Override item type if specified
+      if (itemType && webMetadata) {
+        webMetadata.itemType = itemType;
+      }
+
+      // Create item
+      const creator = new ItemCreator();
+      const result = await creator.createItemFromPDF(
+        pdfPath,
+        collectionKey,
+        webMetadata || undefined,
+        pdfMetadata || undefined
+      );
+
+      // Get created item details
+      const item = Zotero.Items.getByLibraryAndKey(
+        Zotero.Libraries.userLibraryID,
+        result.itemKey
+      );
+
+      const responseData = {
+        success: true,
+        item: {
+          key: result.itemKey,
+          id: result.itemID,
+          title: item.getField('title'),
+          creators: item.getCreators().map((c: any) =>
+            `${c.firstName || ''} ${c.lastName || ''}`.trim()
+          ).join(', '),
+          itemType: item.itemType,
+          date: item.getField('date'),
+          DOI: item.getField('DOI') || undefined,
+        },
+        attachment: result.attachmentKey ? {
+          key: result.attachmentKey,
+          filename: pdfPath.split('/').pop()
+        } : undefined,
+        fieldsSet: result.fieldsSet,
+        metadataSources: result.metadataSources
+      };
+
+      return applyGlobalAIInstructions(responseData, 'upload_pdf_and_create_item');
+    } catch (error) {
+      ztoolkit.log('[StreamableMCP] upload_pdf_and_create_item failed:', error, 'error');
+      throw error;
+    }
+  }
+
+  private async callEnrichItemFromPdf(args: any): Promise<any> {
+    const {
+      itemKey,
+      attachmentKey,
+      overwriteExisting = false,
+      useWebService = true,
+      extractPDFProperties = true,
+      fieldsToUpdate
+    } = args;
+
+    try {
+      ztoolkit.log('[StreamableMCP] enrich_item_from_pdf:', { itemKey, attachmentKey });
+
+      // Get item
+      const item = Zotero.Items.getByLibraryAndKey(
+        Zotero.Libraries.userLibraryID,
+        itemKey
+      );
+
+      if (!item) {
+        throw new Error(`Item with key ${itemKey} not found`);
+      }
+
+      // Find PDF attachment
+      let pdfPath: string | null = null;
+      if (attachmentKey) {
+        const attachment = Zotero.Items.getByLibraryAndKey(
+          Zotero.Libraries.userLibraryID,
+          attachmentKey
+        );
+        if (attachment && attachment.isPDFAttachment()) {
+          pdfPath = attachment.getFilePath();
+        }
+      } else {
+        // Find first PDF attachment
+        const attachmentIds = item.getAttachments();
+        const attachments = Zotero.Items.get(attachmentIds);
+        for (const attachment of attachments) {
+          if (attachment.isPDFAttachment()) {
+            pdfPath = attachment.getFilePath();
+            break;
+          }
+        }
+      }
+
+      if (!pdfPath) {
+        throw new Error('No PDF attachment found for this item');
+      }
+
+      let webMetadata = null;
+      let pdfMetadata = null;
+
+      // Extract metadata from web service
+      if (useWebService) {
+        const retriever = new ZoteroMetadataRetriever(ztoolkit);
+        try {
+          webMetadata = await retriever.retrieveFromPDF(pdfPath);
+          ztoolkit.log('[StreamableMCP] Web metadata retrieved:', webMetadata);
+        } catch (error) {
+          ztoolkit.log('[StreamableMCP] Web metadata retrieval failed:', error, 'error');
+        } finally {
+          retriever.terminate();
+        }
+      }
+
+      // Extract metadata from PDF properties
+      if (extractPDFProperties) {
+        const extractor = new PDFMetadataExtractor(ztoolkit);
+        try {
+          pdfMetadata = await extractor.extractMetadata(pdfPath);
+          ztoolkit.log('[StreamableMCP] PDF metadata extracted:', pdfMetadata);
+        } catch (error) {
+          ztoolkit.log('[StreamableMCP] PDF metadata extraction failed:', error, 'error');
+        } finally {
+          extractor.terminate();
+        }
+      }
+
+      // Filter metadata to only requested fields
+      if (fieldsToUpdate && Array.isArray(fieldsToUpdate) && webMetadata) {
+        const filteredMetadata: any = { itemType: webMetadata.itemType };
+        for (const field of fieldsToUpdate) {
+          if (webMetadata[field as keyof typeof webMetadata]) {
+            filteredMetadata[field] = webMetadata[field as keyof typeof webMetadata];
+          }
+        }
+        webMetadata = filteredMetadata;
+      }
+
+      // Enrich item
+      const creator = new ItemCreator();
+      const result = await creator.enrichExistingItem(
+        itemKey,
+        webMetadata || {},
+        pdfMetadata || undefined,
+        overwriteExisting
+      );
+
+      // Get updated item details
+      const updatedItem = Zotero.Items.getByLibraryAndKey(
+        Zotero.Libraries.userLibraryID,
+        result.itemKey
+      );
+
+      const responseData = {
+        success: true,
+        item: {
+          key: result.itemKey,
+          title: updatedItem.getField('title'),
+          itemType: updatedItem.itemType,
+        },
+        enrichmentSummary: {
+          fieldsUpdated: result.fieldsUpdated,
+          fieldsSkipped: result.fieldsSkipped,
+          tagsAdded: result.tagsAdded,
+          metadataSources: result.metadataSources
+        }
+      };
+
+      return applyGlobalAIInstructions(responseData, 'enrich_item_from_pdf');
+    } catch (error) {
+      ztoolkit.log('[StreamableMCP] enrich_item_from_pdf failed:', error, 'error');
+      throw error;
+    }
   }
 
   /**

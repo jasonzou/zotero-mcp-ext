@@ -148,10 +148,68 @@ export class PDFProcessor {
     }
   }
 
+  /**
+   * 提取PDF元数据
+   * @param path PDF文件路径
+   * @returns Promise<PDFMetadata> 提取的元数据
+   */
+  async extractMetadata(path: string): Promise<PDFMetadata> {
+    try {
+      this.ztoolkit.log("[PDFProcessor] 开始提取PDF元数据:", { path });
+
+      const fileData = await IOUtils.read(path);
+      if (!fileData) {
+        throw new Error("文件读取失败 (IOUtils.read returned falsy)");
+      }
+
+      const response = await this._query<{ info: any; metadata: any; numPages: number }>(
+        "getMetadata",
+        {
+          buf: fileData.buffer,
+          password: undefined,
+        },
+        [fileData.buffer],
+      );
+
+      // Parse PDF info dictionary
+      const info = response?.info || {};
+      const metadata: PDFMetadata = {
+        title: info.Title || undefined,
+        author: info.Author || undefined,
+        subject: info.Subject || undefined,
+        keywords: info.Keywords ? info.Keywords.split(/[,;]\s*/).filter((k: string) => k.trim().length > 0) : undefined,
+        creator: info.Creator || undefined,
+        producer: info.Producer || undefined,
+        creationDate: info.CreationDate || undefined,
+        modificationDate: info.ModDate || undefined,
+        pageCount: response?.numPages || undefined,
+      };
+
+      this.ztoolkit.log("[PDFProcessor] PDF元数据提取成功:", metadata);
+      return metadata;
+    } catch (error) {
+      this.ztoolkit.log("[PDFProcessor] PDF元数据提取失败:", error, "error");
+      // Return empty metadata on error instead of throwing
+      return {};
+    }
+  }
+
   public terminate(): void {
     if (this._worker) {
       this._worker.terminate();
       this._worker = null;
     }
   }
+}
+
+export interface PDFMetadata {
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creator?: string;
+  producer?: string;
+  creationDate?: string;
+  modificationDate?: string;
+  pageCount?: number;
 }
