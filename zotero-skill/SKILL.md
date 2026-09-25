@@ -5,14 +5,18 @@ description: Communicate with Zotero from the command line on Windows/macOS/Linu
 
 # Zotero Local Import & MCP Skill (Windows / macOS / Linux)
 
-This skill provides unified MCP-based operation for PDF import and library management via the [zotero-mcp](https://github.com/cookjohn/zotero-mcp) plugin.
+This skill provides unified operation for PDF import, item import, PDF filing, and library management via the [zotero-mcp](https://github.com/cookjohn/zotero-mcp) plugin, driven by a single zero-dependency Node script.
 
 ## Prerequisites
 
-Before using this skill, make sure Zotero Desktop is open and configured:
+Before using this skill, make sure the runtime and Zotero Desktop are ready:
+
+### Node Runtime
+
+- Node.js **>= 18** on `PATH` (the script uses Node built-ins and global `fetch` only — no `npm install`, no pip, no dependencies)
 
 ### MCP Server Setup
-1. Install the [zotero-mcp-plugin](https://github.com/cookjohn/zotero-mcp/releases) in Zotero 7
+1. Install the [zotero-mcp-plugin](https://github.com/cookjohn/zotero-mcp/releases) in Zotero 7+
    - Download `.xpi` file from Releases
    - Zotero → Tools → Add-ons → Install Add-on From File
 2. Restart Zotero
@@ -20,8 +24,8 @@ Before using this skill, make sure Zotero Desktop is open and configured:
 4. Enable **Start integrated MCP server**
 5. Note the MCP port (default `23120`)
 
-### Zotero Local Connector (for PDF imports)
-The zotero-mcp plugin internally uses Zotero's Local Connector (port 23119) for PDF imports. Ensure:
+### Zotero Local Connector (port 23119)
+PDF imports are proxied through Zotero's Local Connector (port 23119), and `push` / `list-collections` talk to it directly. Ensure:
 1. Open **Zotero → Settings → Advanced**
 2. Enable: **Allow other applications on this computer to communicate with Zotero**
 
@@ -30,24 +34,47 @@ The zotero-mcp plugin internally uses Zotero's Local Connector (port 23119) for 
 
 ## Script location
 
-- `zotero-skill/scripts/zotero_tool.py`
+- `zotero-skill/scripts/zotero.mjs` (single entry point; replaces the older `zotero_tool.py` / `zotero_tool.ts` / `push_to_zotero.py`)
+
+### Three transports
+
+| Transport  | Endpoint                    | Used for                                        |
+| ---------- | --------------------------- | ----------------------------------------------- |
+| MCP        | `http://HOST:23120/mcp`     | JSON-RPC `tools/call` to the zotero-mcp plugin  |
+| Connector  | `http://HOST:23119/connector` | Zotero desktop Connector API (RIS/items/PDF)  |
+| Local API  | `http://HOST:23119/api/...` | Zotero 7 local API (authorized writes, listing) |
 
 ## Features
 
-### PDF Import (via MCP `import_pdf` tool)
+The three ways to load a PDF are always tried in order **1 → 2 → 3** with automatic fallback (see "PDF loading fallback chain" below).
+
+### Way 1 — PDF Import (via MCP `import_pdf` tool)
 1. Import a single PDF
 2. Import all PDFs in a folder (optional recursive mode)
 3. Import into an existing collection
-4. List local Zotero collections (via MCP `list_collections` tool)
-5. Check connector health (via MCP `connector_health` tool)
+4. List local Zotero collections (local API or MCP)
+5. Check connector health (`mcp-health`)
+
+> **Size limit**: `import` / `mcp-import-pdf` base64-encodes the PDF into a JSON-RPC body, and the plugin caps requests at 50 MB — PDFs up to ~35 MB import fine. Larger PDFs fail here; the chain then falls back to Way 2.
+
+### Way 2 — PDF Filing (via MCP `write_item` action="import")
+1. Resolve an existing item by DOI (never creates duplicates)
+2. Create the parent item from a metadata JSON file when needed
+3. Attach the PDF from a local path (no payload size limit)
+4. Add to the target collection and verify from the collection itself
+
+### Way 3 — Item Import + PDF download (Connector / local API, port 23119)
+1. Push RIS data (file or string) into Zotero
+2. Push structured JSON items with a PDF downloaded from `pdfUrl` (+ optional `cookies`)
+3. `--dry-run` preview, `--local-api` backend, duplicate-safe (HTTP 409 = already saved)
 
 ### MCP Server Operations (port 23120)
 1. **Search & Query**: Full-text search, annotation search, metadata search
 2. **Semantic Search**: AI-powered concept matching (requires OpenAI/Ollama)
 3. **Collection Management**: Browse collections, subcollections, items
-4. **Note Management**: Create, read, update notes (Markdown → HTML)
+4. **Note Management**: Create, read notes (Markdown → HTML)
 5. **Tag Management**: Add, remove, replace tags on items
-6. **Metadata Editing**: Update titles, abstracts, DOI, creators
+6. **Metadata Editing**: Update titles, abstracts, DOI, URL, date, creators
 7. **Item Creation**: Create new items or reparent standalone PDFs
 8. **Content Extraction**: Get PDF full-text, abstracts, webpage snapshots
 
@@ -65,45 +92,63 @@ The agent must also collect:
 - Zotero MCP port (default: 23120)
 - Optional collection name (if omitted, default to My Library)
 
-Required execution flow for imports:
+Required execution flow for PDF imports:
 
-1. Run `doctor --auto-install-deps`
-2. If successful, run `import`
+1. Run `mcp-health` to verify the MCP server and connector
+2. Load each PDF through the mandatory fallback chain: **Way 1 (`import`) → Way 2 (`file`) → Way 3 (`push`)** — move to the next way only when the current one fails (see "PDF loading fallback chain" below)
+3. Verify the result before reporting success
 
 Natural-language parsing (paths, file names, port, collection) must be handled by the **agent**, not by the script. The script accepts structured arguments only.
+
+## PDF loading fallback chain (mandatory: 1 → 2 → 3)
+
+The agent must load every PDF by trying the three ways **in order**, moving to the next way only after the current one fails:
+
+| Way | Command | Strengths | Hard limits |
+| --- | ------- | --------- | ----------- |
+| 1. Direct import | `import` | simplest; batch (`--dir`, `--pick`); collection targeting | base64 over MCP — PDFs > ~35 MB rejected (50 MB request cap) |
+| 2. Filing | `file` | no size limit; DOI dedupe; built-in verify | needs a parent item (`--doi` and/or `--metadata`); one PDF per call |
+| 3. Item import + download | `push --json` | creates the item and attaches a PDF from a URL | PDF must be downloadable via `pdfUrl` (paywalled hosts need `cookies`); local files cannot be attached this way |
+
+**Failure** = the command exits non-zero, or its output contains `fail=`, `summary=INCOMPLETE`, or `Failed:`.
+
+Chain rules:
+
+1. Start with Way 1 for every PDF.
+2. If Way 1 fails for a PDF, retry that PDF with Way 2:
+   - pass `--doi` when the DOI is known (reuses an existing item, never duplicates)
+   - if Way 2 exits with "no existing item matched and no --metadata given", build a metadata JSON (title/DOI/creators from the citation at hand) and retry Way 2 once
+3. If Way 2 also fails, fall back to Way 3: build a JSON paper object (`title`, `authors`, `doi`, `pdfUrl`, optional `cookies`/`pdfReferer`) and `push` it with `--collection`. If no usable `pdfUrl` exists, push the metadata only (PDF skipped) and tell the user.
+4. Before retrying a PDF in a later way, check whether an earlier way already created the item (`find --doi` or `mcp-search` by title) to avoid duplicates.
+5. Report the per-PDF outcome: which way succeeded, or that all three ways failed.
 
 ## Command usage
 
 Run from repository root (or use absolute script path):
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py --help
+node zotero-skill/scripts/zotero.mjs --help
 ```
 
 ### 0) Environment check (mandatory)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py doctor \
-  --mcp-port <MCP_PORT> \
-  --auto-install-deps
+node zotero-skill/scripts/zotero.mjs mcp-health --mcp-port <MCP_PORT>
 ```
 
-This checks and auto-handles:
+This checks:
 
-- Python runtime availability
-- `requests` dependency (auto-installs if missing)
-- MCP server ping (`http://127.0.0.1:<mcp-port>/mcp`)
-- Zotero Local Connector health via MCP proxy
+- Node runtime (prints executable path and version)
+- MCP server ping (`http://127.0.0.1:<mcp-port>/mcp`), plus a debug list of available MCP tools
+- Zotero Local Connector health via direct ping on port 23119 (falls back to the MCP `connector_health` proxy tool)
 
-If auto-install fails, the agent should surface the error and suggest:
-
-```bash
-python -m pip install requests>=2.31.0
-```
+Exit code `11` means the doctor check failed. There are **no dependencies to auto-install**; if the MCP server is unreachable, verify the plugin is installed and the integrated MCP server is enabled, then re-run.
 
 ---
 
-## PDF Import Commands (via MCP)
+## PDF Import Commands (Way 1)
+
+> First way in the fallback chain. Best for PDFs up to ~35 MB; on failure fall back to Way 2 (`file`), then Way 3 (`push`).
 
 ### NL) Natural-language input policy (agent-side parsing only)
 
@@ -119,10 +164,12 @@ The agent must convert NL input into structured CLI args, then call `import`:
 - Port: `--mcp-port`
 - Collection: optional `--collection` (defaults to My Library)
 
+`--pdf` and `--dir` are mutually exclusive; `--pick` only works with `--dir`.
+
 ### A) Import a single PDF
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --pdf "<ABSOLUTE_PDF_PATH>" \
   --mcp-port <MCP_PORT>
 ```
@@ -130,7 +177,7 @@ python zotero-skill/scripts/zotero_tool.py import \
 ### A2) Import multiple PDFs (repeat `--pdf`)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --pdf "<PDF_PATH_1>" \
   --pdf "<PDF_PATH_2>" \
   --pdf "<PDF_PATH_3>" \
@@ -140,7 +187,7 @@ python zotero-skill/scripts/zotero_tool.py import \
 ### B) Batch import a folder (non-recursive)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --dir "<ABSOLUTE_FOLDER_PATH>" \
   --mcp-port <MCP_PORT>
 ```
@@ -148,7 +195,7 @@ python zotero-skill/scripts/zotero_tool.py import \
 ### C) Batch import a folder (recursive)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --dir "<ABSOLUTE_FOLDER_PATH>" \
   --recursive \
   --mcp-port <MCP_PORT>
@@ -157,7 +204,7 @@ python zotero-skill/scripts/zotero_tool.py import \
 ### D) Import into a specific existing collection
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --dir "<ABSOLUTE_FOLDER_PATH>" \
   --recursive \
   --collection "<EXISTING_COLLECTION_NAME>" \
@@ -167,7 +214,7 @@ python zotero-skill/scripts/zotero_tool.py import \
 ### D2) Import selected PDFs from a folder (CSV file names)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --dir "<ABSOLUTE_FOLDER_PATH>" \
   --pick "x.pdf,y.pdf,z.pdf" \
   --collection "<EXISTING_COLLECTION_NAME>" \
@@ -177,7 +224,7 @@ python zotero-skill/scripts/zotero_tool.py import \
 Or repeat `--pick`:
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py import \
+node zotero-skill/scripts/zotero.mjs import \
   --dir "<ABSOLUTE_FOLDER_PATH>" \
   --pick "x.pdf" \
   --pick "y.pdf" \
@@ -185,16 +232,120 @@ python zotero-skill/scripts/zotero_tool.py import \
   --mcp-port <MCP_PORT>
 ```
 
-### E) List local collections (via MCP)
+### E) List local collections
+
+Via the Zotero local API (port 23119, prints `<key>\t<name>`):
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py list-collections --mcp-port <MCP_PORT>
+node zotero-skill/scripts/zotero.mjs list-collections
+```
+
+Via MCP (port 23120, JSON output):
+
+```bash
+node zotero-skill/scripts/zotero.mjs mcp-collections --mcp-port <MCP_PORT>
 ```
 
 ### F) Check connector health (via MCP)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py doctor --mcp-port <MCP_PORT>
+node zotero-skill/scripts/zotero.mjs mcp-health --mcp-port <MCP_PORT>
+```
+
+---
+
+## PDF Filing Commands (Way 2)
+
+> **Why not `import`?** The plugin caps MCP request bodies at 50 MB (≈35 MB PDFs), so `import` fails on anything larger with HTTP 400 / JSON-RPC `-32700 Parse error`. `file` uses the plugin's `write_item` tool with `action="import"`, which reads the path on the Zotero host and sends a tiny request body — no practical size limit. It also dedupes by DOI and verifies the result.
+>
+> **Constraint**: `write_item action="import"` requires an existing parent item, so the flow is always: resolve parent (by DOI) → create parent (from metadata JSON) if none → attach → verify. Existing PDF attachments are reused unless `--force` is given.
+
+### Check MCP server reachability
+
+```bash
+node zotero-skill/scripts/zotero.mjs health --mcp-port <MCP_PORT>
+```
+
+### List collections as `<key>\t<path>`
+
+```bash
+node zotero-skill/scripts/zotero.mjs collections --mcp-port <MCP_PORT>
+```
+
+### Find an item by DOI (exit `3` = not found)
+
+```bash
+node zotero-skill/scripts/zotero.mjs find \
+  --doi "10.1234/example" \
+  --collection "<EXISTING_COLLECTION_NAME>" \
+  --mcp-port <MCP_PORT>
+```
+
+### File a PDF (resolve-or-create parent, attach, verify)
+
+```bash
+node zotero-skill/scripts/zotero.mjs file \
+  --pdf "<ABSOLUTE_PDF_PATH>" \
+  --collection "<EXISTING_COLLECTION_NAME>" \
+  --doi "10.1234/example" \
+  --metadata "/path/to/metadata.json" \
+  --mcp-port <MCP_PORT>
+```
+
+- `--doi` (optional): reuse an existing library item matching this DOI instead of creating one
+- `--metadata` (optional): JSON file used to create the parent when no existing item matched; **required** when no DOI match exists
+- `--title` (optional): attachment title (default `Full Text PDF`)
+- `--force`: attach another PDF even if the parent already has one
+
+Metadata JSON shape:
+
+```json
+{
+  "itemType": "journalArticle",
+  "fields": { "title": "Article Title", "DOI": "10.1234/example", "url": "https://..." },
+  "creators": [{ "creatorType": "author", "firstName": "John", "lastName": "Doe" }],
+  "tags": ["machine-learning"]
+}
+```
+
+---
+
+## Item Import Commands (Way 3 — Zotero Connector / local API, port 23119)
+
+> All `push` modes accept `--collection <name>` (must exist), `--dry-run` (works offline), and `--local-api` (use the Zotero 7 local API instead of the Connector backend).
+
+### Push a RIS file
+
+```bash
+node zotero-skill/scripts/zotero.mjs push --ris-file "/path/to/export.ris"
+```
+
+### Push inline RIS data
+
+```bash
+node zotero-skill/scripts/zotero.mjs push --ris-data "TY  - JOUR\nTI  - Title\nER  - "
+```
+
+### Push structured JSON (file or stdin)
+
+```bash
+node zotero-skill/scripts/zotero.mjs push --json "/path/to/papers.json"
+node zotero-skill/scripts/zotero.mjs push "/path/to/papers.json"
+cat papers.json | node zotero-skill/scripts/zotero.mjs push
+```
+
+JSON input accepts a single paper object, an array of papers, or `{"items": [...]}`. Loose paper data (title/authors/abstract/doi/keywords/pdfUrl...) is normalized into Zotero items; prebuilt items with `itemType` pass through. Fields like `pdfUrl`, `cookies`, `pdfReferer` trigger PDF download + attachment.
+
+### Preview without writing
+
+```bash
+node zotero-skill/scripts/zotero.mjs push --json papers.json --dry-run
+```
+
+### Show the currently selected collection tree in Zotero
+
+```bash
+node zotero-skill/scripts/zotero.mjs push --list
 ```
 
 ---
@@ -208,7 +359,7 @@ python zotero-skill/scripts/zotero_tool.py doctor --mcp-port <MCP_PORT>
 #### Search library (multi-dimensional)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-search \
+node zotero-skill/scripts/zotero.mjs mcp-search \
   --mcp-port <MCP_PORT> \
   --query "machine learning" \
   --mode "title,creator,year,tags,fulltext" \
@@ -218,17 +369,18 @@ python zotero-skill/scripts/zotero_tool.py mcp-search \
 #### Search annotations/highlights
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-search-annotations \
+node zotero-skill/scripts/zotero.mjs mcp-search-annotations \
   --mcp-port <MCP_PORT> \
   --query "neural networks" \
   --color "yellow" \
+  --tags "important" \
   --limit 10
 ```
 
 #### Full-text search
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-search-fulltext \
+node zotero-skill/scripts/zotero.mjs mcp-search-fulltext \
   --mcp-port <MCP_PORT> \
   --query "transformer architecture" \
   --limit 10
@@ -237,7 +389,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-search-fulltext \
 #### Semantic search (requires embedding setup)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-semantic-search \
+node zotero-skill/scripts/zotero.mjs mcp-semantic-search \
   --mcp-port <MCP_PORT> \
   --query "attention mechanisms in NLP" \
   --limit 10
@@ -246,7 +398,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-semantic-search \
 #### Find similar items
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-find-similar \
+node zotero-skill/scripts/zotero.mjs mcp-find-similar \
   --mcp-port <MCP_PORT> \
   --item-key "ABC123XYZ" \
   --limit 10
@@ -257,23 +409,24 @@ python zotero-skill/scripts/zotero_tool.py mcp-find-similar \
 #### Get item details
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-item-details \
+node zotero-skill/scripts/zotero.mjs mcp-item-details \
   --mcp-port <MCP_PORT> \
   --item-key "ABC123XYZ"
 ```
 
-#### Get item abstract
+#### Get item abstract (`--format text|json`)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-item-abstract \
+node zotero-skill/scripts/zotero.mjs mcp-item-abstract \
   --mcp-port <MCP_PORT> \
-  --item-key "ABC123XYZ"
+  --item-key "ABC123XYZ" \
+  --format text
 ```
 
 #### Get content (PDF text, notes, abstracts)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-get-content \
+node zotero-skill/scripts/zotero.mjs mcp-get-content \
   --mcp-port <MCP_PORT> \
   --item-key "ABC123XYZ" \
   --mode "standard"
@@ -286,14 +439,14 @@ Modes: `minimal`, `preview`, `standard`, `complete`
 #### List all collections
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-collections \
+node zotero-skill/scripts/zotero.mjs mcp-collections \
   --mcp-port <MCP_PORT>
 ```
 
 #### Get collection details
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-collection-details \
+node zotero-skill/scripts/zotero.mjs mcp-collection-details \
   --mcp-port <MCP_PORT> \
   --collection-key "COLLECTION_KEY"
 ```
@@ -301,7 +454,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-collection-details \
 #### Get items in collection
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-collection-items \
+node zotero-skill/scripts/zotero.mjs mcp-collection-items \
   --mcp-port <MCP_PORT> \
   --collection-key "COLLECTION_KEY" \
   --limit 50
@@ -310,7 +463,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-collection-items \
 #### Get subcollections
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-subcollections \
+node zotero-skill/scripts/zotero.mjs mcp-subcollections \
   --mcp-port <MCP_PORT> \
   --collection-key "COLLECTION_KEY" \
   --recursive
@@ -318,10 +471,10 @@ python zotero-skill/scripts/zotero_tool.py mcp-subcollections \
 
 ### Note Management Commands
 
-#### Create or update note
+#### Create note (Markdown → HTML)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-write-note \
+node zotero-skill/scripts/zotero.mjs mcp-write-note \
   --mcp-port <MCP_PORT> \
   --item-key "PARENT_ITEM_KEY" \
   --note "# My Notes\n\nThis is a markdown note.\n\n- Point 1\n- Point 2"
@@ -330,7 +483,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-write-note \
 Or from file:
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-write-note \
+node zotero-skill/scripts/zotero.mjs mcp-write-note \
   --mcp-port <MCP_PORT> \
   --item-key "PARENT_ITEM_KEY" \
   --note-file "/path/to/notes.md"
@@ -339,7 +492,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-write-note \
 #### Read note
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-read-note \
+node zotero-skill/scripts/zotero.mjs mcp-read-note \
   --mcp-port <MCP_PORT> \
   --note-key "NOTE_KEY"
 ```
@@ -349,7 +502,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-read-note \
 #### Add tags to item
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-add-tags \
+node zotero-skill/scripts/zotero.mjs mcp-add-tags \
   --mcp-port <MCP_PORT> \
   --item-key "ITEM_KEY" \
   --tags "machine-learning,deep-learning,transformers"
@@ -358,7 +511,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-add-tags \
 #### Remove tags from item
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-remove-tags \
+node zotero-skill/scripts/zotero.mjs mcp-remove-tags \
   --mcp-port <MCP_PORT> \
   --item-key "ITEM_KEY" \
   --tags "old-tag,obsolete-tag"
@@ -367,7 +520,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-remove-tags \
 #### Replace all tags on item
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-replace-tags \
+node zotero-skill/scripts/zotero.mjs mcp-replace-tags \
   --mcp-port <MCP_PORT> \
   --item-key "ITEM_KEY" \
   --tags "new-tag-1,new-tag-2,new-tag-3"
@@ -375,10 +528,10 @@ python zotero-skill/scripts/zotero_tool.py mcp-replace-tags \
 
 ### Metadata Commands
 
-#### Update item metadata
+#### Update item metadata (any of `--title`, `--abstract`, `--doi`, `--url`, `--date`)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-update-metadata \
+node zotero-skill/scripts/zotero.mjs mcp-update-metadata \
   --mcp-port <MCP_PORT> \
   --item-key "ITEM_KEY" \
   --title "New Title" \
@@ -389,7 +542,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-update-metadata \
 #### Update creators (authors)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-update-creators \
+node zotero-skill/scripts/zotero.mjs mcp-update-creators \
   --mcp-port <MCP_PORT> \
   --item-key "ITEM_KEY" \
   --creators '[{"firstName":"John","lastName":"Doe","creatorType":"author"}]'
@@ -397,10 +550,10 @@ python zotero-skill/scripts/zotero_tool.py mcp-update-creators \
 
 ### Item Creation Commands
 
-#### Create new item
+#### Create new item (`--item-type` required; optional `--title`, `--url`, `--abstract`, `--doi`)
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-create-item \
+node zotero-skill/scripts/zotero.mjs mcp-create-item \
   --mcp-port <MCP_PORT> \
   --item-type "journalArticle" \
   --title "Article Title" \
@@ -410,7 +563,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-create-item \
 #### Reparent standalone PDF
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-reparent-pdf \
+node zotero-skill/scripts/zotero.mjs mcp-reparent-pdf \
   --mcp-port <MCP_PORT> \
   --pdf-key "PDF_ITEM_KEY" \
   --parent-key "PARENT_ITEM_KEY"
@@ -419,7 +572,7 @@ python zotero-skill/scripts/zotero_tool.py mcp-reparent-pdf \
 ### Semantic Search Status
 
 ```bash
-python zotero-skill/scripts/zotero_tool.py mcp-semantic-status \
+node zotero-skill/scripts/zotero.mjs mcp-semantic-status \
   --mcp-port <MCP_PORT>
 ```
 
@@ -427,26 +580,26 @@ python zotero-skill/scripts/zotero_tool.py mcp-semantic-status \
 
 ```bash
 # List full-text entries
-python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
+node zotero-skill/scripts/zotero.mjs mcp-fulltext-db \
   --mcp-port <MCP_PORT> \
   --action list \
   --limit 20
 
 # Search full-text database
-python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
+node zotero-skill/scripts/zotero.mjs mcp-fulltext-db \
   --mcp-port <MCP_PORT> \
   --action search \
   --query "search term" \
   --limit 10
 
 # Get specific item full-text
-python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
+node zotero-skill/scripts/zotero.mjs mcp-fulltext-db \
   --mcp-port <MCP_PORT> \
   --action get \
   --item-key "ITEM_KEY"
 
 # Get full-text stats
-python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
+node zotero-skill/scripts/zotero.mjs mcp-fulltext-db \
   --mcp-port <MCP_PORT> \
   --action stats
 ```
@@ -455,9 +608,19 @@ python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
 
 ## Key parameters
 
-### MCP Server Parameters
+### Global Parameters
 - `--mcp-port`: Zotero MCP server port (default: `ZOTERO_MCP_PORT` env var, fallback `23120`)
-- `--timeout`: HTTP timeout in seconds (default `30` for MCP operations, `90` for imports)
+- `--host`: Zotero host (default: `127.0.0.1`; overridden by `HOST_IP`/`HOST` env or `DOCKER_HOST=tcp://host:port`)
+- `--timeout`: HTTP timeout in seconds (default `30` for MCP operations, `90` for `import`, `60` for filing `health`/`collections`/`find`, `120` for `file`)
+- `--verbose` / `-v`: debug output to stderr
+
+### Environment Variables
+- `ZOTERO_MCP_HOST`: MCP host override
+- `ZOTERO_MCP_PORT`: default MCP port
+- `ZOTERO_LOCAL`: base URL of the local API/connector (default `http://127.0.0.1:23119`)
+- `ZOTERO_API_KEY`: local API key (auto-authorized when absent)
+
+### Common Command Parameters
 - `--collection`: target existing collection name
 - `--limit`: Result limit for search/list operations (default varies by command)
 - `--query`: Search query string
@@ -465,8 +628,12 @@ python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
 - `--collection-key`: Zotero collection key
 - `--mode`: Content extraction mode (`minimal`, `preview`, `standard`, `complete`)
 
+### Exit codes
+`0` ok | `1` failure | `2` usage | `3` not found | `4` no PDFs / MCP error | `5` partial import failure | `11` doctor (mcp-health) failure | `20` runtime error | `21` invalid input
+
 ## Platform notes
 
+- Runtime: Node.js >= 18 (all platforms)
 - Windows: supported by default
 - macOS: requires `open`
 - Linux: requires `xdg-open`
@@ -474,44 +641,89 @@ python zotero-skill/scripts/zotero_tool.py mcp-fulltext-db \
 ## Failure handling
 
 ### MCP Server
-- `error=mcp_server_not_found`: verify zotero-mcp plugin is installed and MCP server is enabled
-- `error=connector_health`: verify Zotero desktop is running and Local Connector is enabled
+- Connection refused / MCP server not reachable: verify zotero-mcp plugin is installed and the integrated MCP server is enabled
+- `zotero_connector=fail` in `mcp-health`: verify Zotero desktop is running and Local Connector is enabled
 - Write operations disabled: check Zotero MCP preferences to enable write operations
 - Semantic search unavailable: verify OpenAI/Ollama embedding API is configured
 
-### Import Failures
+### Import Failures (`import` / `mcp-import-pdf` — Way 1)
+- Any failure → fall back to Way 2 (`file`) per the fallback chain
+- HTTP 400 with JSON-RPC `-32700 Parse error`: PDF exceeds the plugin's 50 MB request cap (~35 MB PDF size) — Way 2 (`file`) has no such limit
 - Connection failures: verify Zotero is running and MCP server is enabled
 - Import failures: retry with one PDF first, then run batch import
 - `error=collection not found`: create the collection manually in Zotero first
 
+### Filing Failures (`file` — Way 2)
+- Any failure → fall back to Way 3 (`push`) per the fallback chain
+- "no existing item matched and no --metadata given": build a metadata JSON (see PDF Filing section) and retry once before falling back
+- `summary=INCOMPLETE`: the verify step failed; check `verify_in_collection` / `verify_pdf_count` output and re-run with `--force` if a stale attachment exists
+
+### Item Import Failures (`push` — Way 3)
+- Way 3 is the last link in the chain; if it also fails, report the per-PDF failure to the user
+- "Zotero not running": start the Zotero desktop app (only `--dry-run` works offline)
+- "collection '...' not found": create the collection in Zotero first
+- HTTP 409: item already saved — treated as success (duplicate-safe)
+- "Target library is read-only": switch to a writable collection in Zotero
+
 ## Quick Reference: Common Workflows
+
+### Load a PDF with automatic fallback (Way 1 → 2 → 3)
+```bash
+S="zotero-skill/scripts/zotero.mjs"; P=23120
+
+# Way 1: direct import
+node $S import --pdf "paper.pdf" --mcp-port $P \
+# Way 2 (if Way 1 failed): file — needs --collection plus --doi and/or --metadata
+|| node $S file --pdf "paper.pdf" --collection "My Collection" --doi "10.1234/example" --metadata metadata.json --mcp-port $P \
+# Way 3 (if Way 2 failed): push JSON with pdfUrl (downloads + attaches)
+|| node $S push --json paper.json --collection "My Collection"
+```
+Each non-zero exit (or `fail=` / `summary=INCOMPLETE` / `Failed:` output) triggers the next way. Verify afterwards with `find --doi` or `mcp-search`.
 
 ### Import and tag PDFs
 ```bash
-# 1. Import PDFs
-python zotero-skill/scripts/zotero_tool.py import --pdf "paper.pdf" --mcp-port 23120
+# 1. Import a small PDF
+node zotero-skill/scripts/zotero.mjs import --pdf "paper.pdf" --mcp-port 23120
 
 # 2. Search for the item to get its key
-python zotero-skill/scripts/zotero_tool.py mcp-search --mcp-port 23120 --query "paper" --limit 5
+node zotero-skill/scripts/zotero.mjs mcp-search --mcp-port 23120 --query "paper" --limit 5
 
 # 3. Add tags to the item
-python zotero-skill/scripts/zotero_tool.py mcp-add-tags --mcp-port 23120 --item-key "ITEM_KEY" --tags "important,toread"
+node zotero-skill/scripts/zotero.mjs mcp-add-tags --mcp-port 23120 --item-key "ITEM_KEY" --tags "important,toread"
+```
+
+### File a publisher PDF into a collection
+```bash
+# 1. Check whether the item already exists (by DOI)
+node zotero-skill/scripts/zotero.mjs find --doi "10.1234/example" --collection "My Collection" --mcp-port 23120
+
+# 2. File the PDF (reuses the matched item, or creates the parent from metadata.json)
+node zotero-skill/scripts/zotero.mjs file --pdf "paper.pdf" --collection "My Collection" --doi "10.1234/example" --metadata metadata.json --mcp-port 23120
 ```
 
 ### Find related papers
 ```bash
 # 1. Search for a paper
-python zotero-skill/scripts/zotero_tool.py mcp-search --mcp-port 23120 --query "attention is all you need" --limit 1
+node zotero-skill/scripts/zotero.mjs mcp-search --mcp-port 23120 --query "attention is all you need" --limit 1
 
 # 2. Find semantically similar papers
-python zotero-skill/scripts/zotero_tool.py mcp-find-similar --mcp-port 23120 --item-key "ITEM_KEY" --limit 10
+node zotero-skill/scripts/zotero.mjs mcp-find-similar --mcp-port 23120 --item-key "ITEM_KEY" --limit 10
 ```
 
 ### Batch process folder with notes
 ```bash
 # 1. Import all PDFs from folder
-python zotero-skill/scripts/zotero_tool.py import --dir "./papers" --recursive --mcp-port 23120
+node zotero-skill/scripts/zotero.mjs import --dir "./papers" --recursive --mcp-port 23120
 
 # 2. Create a note for a specific paper
-python zotero-skill/scripts/zotero_tool.py mcp-write-note --mcp-port 23120 --item-key "ITEM_KEY" --note "# Summary\n\nKey findings..."
+node zotero-skill/scripts/zotero.mjs mcp-write-note --mcp-port 23120 --item-key "ITEM_KEY" --note "# Summary\n\nKey findings..."
+```
+
+### Push RIS exports from databases
+```bash
+# 1. Preview what would be created
+node zotero-skill/scripts/zotero.mjs push --ris-file export.ris --dry-run
+
+# 2. Push into an existing collection
+node zotero-skill/scripts/zotero.mjs push --ris-file export.ris --collection "My Collection"
 ```
