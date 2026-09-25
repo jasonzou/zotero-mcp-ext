@@ -339,7 +339,7 @@ export class HttpServer {
         // 改进请求读取逻辑 - 读取完整的HTTP请求（包括body）
         let requestText = "";
         let totalBytesRead = 0;
-        const maxRequestSize = 1024 * 1024; // 1MB max request size
+        const maxRequestSize = 50 * 1024 * 1024; // 50MB max request size
         let waitAttempts = 0;
         const maxWaitAttempts = 50; // Increase wait attempts for larger requests
         let headersComplete = false;
